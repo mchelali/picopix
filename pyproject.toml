@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "picopix"
+version = "0.1.0"
+description = ""
+authors = [
+    "Mohamed CHELALI <mouha.chelali@gmail.com>",
+    "Yannick Oreal <axee@laposte.net>",
+    "Daniel <lewandowski_daniel_s@yahoo.fr>",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
