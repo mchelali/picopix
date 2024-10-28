@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import os
 from model.colorizator import Net
@@ -96,7 +97,7 @@ if __name__ == "__main__":
 
     print("Image preprocessing completed!")
     trainner = Trainer(device)
-    vald_loss = 0
+    vald_loss = np.inf
     patience = 0
     # Train model
     for epoch in range(args.epochs):
@@ -107,7 +108,10 @@ if __name__ == "__main__":
             epoch_valid_loss = trainner.validate(val_loader, model, criterion)
 
         if epoch_valid_loss > vald_loss:
+            print(f"---> Early stopping criterion {patience}/{args.early_stop}")
             patience += 1
+        else:
+            vald_loss = epoch_valid_loss
 
         if patience > args.early_stop:
             break
