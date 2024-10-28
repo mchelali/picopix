@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import torch
@@ -314,3 +315,10 @@ class Trainer:
         if save_path:
             plt.savefig(save_path)
         # plt.show()
+
+        with open(f"{save_path}/losses.json", "w") as fout:
+            json.dump(
+                {"train_losses": self.train_losses, "val_losses": self.val_losses},
+                fout,
+                indent=2,
+            )
