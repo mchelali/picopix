@@ -79,7 +79,8 @@ if __name__ == "__main__":
         optimizer, step_size=5, gamma=0.5, verbose=False
     )
     # Training
-    root_data = "/Users/mohamedchelali/Documents/Projects/picopix/dataset/landscape_images/"  # args.image_dir
+    root_data = os.path.abspath(args.image_dir)
+
     train_transforms = T.Compose([T.RandomResizedCrop(224), T.RandomHorizontalFlip()])
     train_imagefolder = ColorizeData(f"{root_data}/train", train_transforms)
     train_loader = torch.utils.data.DataLoader(
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
     # Validation
     val_transforms = T.Compose([T.Resize(256), T.CenterCrop(224)])
-    val_imagefolder = ColorizeData(f"{root_data}/validation", val_transforms)
+    val_imagefolder = ColorizeData(f"{root_data}/val", val_transforms)
     val_loader = torch.utils.data.DataLoader(
         val_imagefolder, batch_size=args.batch_size, shuffle=False
     )

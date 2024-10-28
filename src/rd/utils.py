@@ -21,10 +21,16 @@ class ColorizeData(Dataset):
         """
         self.root_dir = root_dir
         self.transform = transform
+        # self.image_paths = [
+        #     os.path.join(root_dir, f)
+        #     for f in os.listdir(self.root_dir)
+        #     if f.endswith((".png", ".jpg", ".jpeg"))
+        # ]
         self.image_paths = [
-            os.path.join(root_dir, f)
-            for f in os.listdir(root_dir)
-            if f.endswith((".png", ".jpg", ".jpeg"))
+            os.path.join(root, f)
+            for root, dirs, files in os.walk(self.root_dir)
+            for f in files
+            if f.endswith(".jpg")
         ]
 
     def __len__(self) -> int:
@@ -193,7 +199,7 @@ class Trainer:
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if i % 2 == 0:
+            if i % 25 == 0:
                 self._log_training(
                     epoch, i, len(train_loader), batch_time, data_time, losses
                 )
