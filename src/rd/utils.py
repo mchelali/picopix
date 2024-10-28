@@ -296,7 +296,7 @@ class Trainer:
             f"Loss {losses.val:.6f} ({losses.avg:.6f})\t"
         )
 
-    def plot_losses(self, save_path: Optional[str] = None) -> None:
+    def plot_losses(self, save_path_folder: Optional[str] = None) -> None:
         """
         Plots and optionally saves training and validation losses.
 
@@ -312,11 +312,11 @@ class Trainer:
         plt.legend()
         plt.title("Training and Validation Loss Over Epochs")
 
-        if save_path:
-            plt.savefig(save_path)
+        if save_path_folder:
+            plt.savefig(f"{save_path_folder}/losses.png")
         # plt.show()
 
-        with open(f"{save_path}/losses.json", "w") as fout:
+        with open(f"{save_path_folder}/losses.json", "w") as fout:
             json.dump(
                 {"train_losses": self.train_losses, "val_losses": self.val_losses},
                 fout,

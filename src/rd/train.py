@@ -117,4 +117,4 @@ if __name__ == "__main__":
             break
 
     torch.save(model, "checkpoint/saved_model.pth")
-    trainner.plot_losses("checkpoint/losses.png")
+    trainner.plot_losses("checkpoint")
