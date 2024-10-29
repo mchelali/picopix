@@ -111,10 +111,13 @@ if __name__ == "__main__":
             print(f"---> Early stopping criterion {patience}/{args.early_stop}")
             patience += 1
         else:
+            patience = 0
             vald_loss = epoch_valid_loss
+            torch.save(model, "checkpoint/best_model.pth")
+            trainner.plot_losses("checkpoint")
 
         if patience > args.early_stop:
             break
 
-    torch.save(model, "checkpoint/saved_model.pth")
+    torch.save(model, "checkpoint/last_model.pth")
     trainner.plot_losses("checkpoint")

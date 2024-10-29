@@ -20,12 +20,11 @@ def to_rgb(grayscale_input, ab_input):
 
 
 if __name__ == "__main__":
-    os.makedirs("checkpoint/infrence", exist_ok=True)
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--model_path",
-        default="checkpoint/saved_model.pth",
+        default="checkpoint/best_model.pth",
         type=str,
         help="Path to the saved model",
     )
