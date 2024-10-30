@@ -11,6 +11,46 @@ from typing import Dict, Optional
 from PIL import Image
 
 
+class Pix2pixDataset(Dataset):
+
+    def __init__(self, root_dir, transforms=None, mode="train"):
+        self.transform = transforms
+
+        self.image_paths = [
+            os.path.join(root, f)
+            for root, dirs, files in os.walk(root_dir)
+            for f in files
+            if f.endswith(".jpg")
+        ]
+
+    def __getitem__(self, index):
+        # Load and convert image to RGB
+        image = Image.open(self.image_paths[index % len(self.image_paths)]).convert(
+            "RGB"
+        )
+
+        # Convert image to NumPy array
+        img_A = np.asarray(image)
+
+        # Get grayscale version as img_B
+        img_B = rgb2gray(img_A)
+
+        # Convert grayscale image back to 3 channels by stacking
+        img_B = np.stack([img_B] * 3, axis=-1)  # Shape (H, W, 3)
+
+        # Apply transforms if available
+        if self.transform:
+            img_A = self.transform(Image.fromarray(img_A))
+            img_B = self.transform(
+                Image.fromarray((img_B * 255).astype(np.uint8))
+            )  # Rescale grayscale to 0-255
+
+        return img_B, img_A
+
+    def __len__(self):
+        return len(self.image_paths)
+
+
 class ColorizeData(Dataset):
     def __init__(self, root_dir: str, transform=None):
         """
