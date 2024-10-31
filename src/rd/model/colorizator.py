@@ -5,7 +5,9 @@ import torchvision.models as models
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        resnet = models.resnet34(num_classes=1000)
+        resnet = models.resnet34(
+            num_classes=1000, weights=models.ResNet34_Weights.IMAGENET1K_V1
+        )
         resnet.conv1.weight = nn.Parameter(resnet.conv1.weight.sum(dim=1).unsqueeze(1))
         self.midlevel_resnet = nn.Sequential(*list(resnet.children())[0:6])
         RESNET_FEATURE_SIZE = 128

@@ -34,7 +34,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_epochs", type=int, default=200, help="number of epochs of training"
     )
-    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument(
+        "--batch_size", type=int, default=16, help="size of the batches"
+    )
     parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
     parser.add_argument(
         "--b1",
@@ -162,6 +164,7 @@ if __name__ == "__main__":
         real_B = Variable(imgs[1].type(Tensor))
         fake_B = generator(real_A)
         img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
+        os.makedirs("checkpoint/%s/" % "validation", exist_ok=True)
         save_image(
             img_sample,
             "checkpoint/%s/%s.png" % ("validation", batches_done),
@@ -262,13 +265,13 @@ if __name__ == "__main__":
             if batches_done % opt.sample_interval == 0:
                 sample_images(batches_done)
 
-        if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
-            # Save model checkpoints
-            torch.save(
-                generator.state_dict(),
-                "checkpoint/generator_%d.pth" % epoch,
-            )
-            torch.save(
-                discriminator.state_dict(),
-                "checkpoint/discriminator_%d.pth" % epoch,
-            )
+        # if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
+        # Save model checkpoints
+        torch.save(
+            generator.state_dict(),
+            "checkpoint/generator_%d.pth" % epoch,
+        )
+        torch.save(
+            discriminator.state_dict(),
+            "checkpoint/discriminator_%d.pth" % epoch,
+        )

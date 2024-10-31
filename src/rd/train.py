@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_decay",
         type=float,
-        default=1e-4,
+        default=1e-3,
         help="Weight decay value for Adam optimizer",
     )
     parser.add_argument(
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=5, gamma=0.5, verbose=False
+        optimizer, step_size=10, gamma=0.5, verbose=False
     )
     # Training
     root_data = os.path.abspath(args.image_dir)
