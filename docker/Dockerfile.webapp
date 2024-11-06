@@ -1,6 +1,7 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
-RUN apt update && apt install -y gcc libpq-dev 
+RUN apt update && apt install -y gcc libpq-dev ffmpeg 
+
 # Installation des dépendances
 WORKDIR /webapp
 COPY ./src/webapp/pyproject.toml .
@@ -13,7 +14,7 @@ COPY ./src/webapp .
 COPY .env .
 
 # Exposer le port de FastAPI
-EXPOSE 8002
+EXPOSE 80
 
 # Lancer l'application FastAPI
 CMD ["tail", "-f", "/dev/null"]
