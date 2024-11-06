@@ -8,6 +8,9 @@ import torchvision.transforms as T
 import cv2
 import glob
 
+from mlflow import MlflowClient
+import mlflow
+
 from utils import ColorizeData, Trainer
 
 
@@ -30,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--image_dir",
         type=str,
-        default="landscape_images/",
+        default="dataset/",
         help="Directory containing all images in the dataset",
     )
     parser.add_argument(
@@ -68,6 +71,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Net().to(device)
 
+    dataset = os.path.dirname(args.image_dir).split(os.path.sep)[-1]
+
+    # Define experiment name, run name and artifact_path name
+    mlflow_experiment = mlflow.set_experiment("Colorizator")
+    run_name = f"autoencoder_{dataset}"
+    client = MlflowClient(tracking_uri=os.getenv("MLFLOW_TRACKING_URI"))
+
     if args.loss == "mse":  # Initialize loss according to choice
         criterion = nn.MSELoss().to(device)
     else:
@@ -99,25 +109,46 @@ if __name__ == "__main__":
     trainner = Trainer(device)
     vald_loss = np.inf
     patience = 0
-    # Train model
-    for epoch in range(args.epochs):
-        # Train for one epoch, then validate
-        trainner.train(train_loader, epoch, model, criterion, optimizer)
-        scheduler.step()
-        with torch.no_grad():
-            epoch_valid_loss = trainner.validate(val_loader, model, criterion)
 
-        if epoch_valid_loss > vald_loss:
-            print(f"---> Early stopping criterion {patience}/{args.early_stop}")
-            patience += 1
-        else:
-            patience = 0
-            vald_loss = epoch_valid_loss
-            torch.save(model, "checkpoint/best_model.pth")
-            trainner.plot_losses("checkpoint")
+    # Store information in tracking server
+    with mlflow.start_run(run_name=run_name) as run:
+        # Train model
+        for epoch in range(args.epochs):
+            # Train for one epoch, then validate
+            trainner.train(train_loader, epoch, model, criterion, optimizer)
+            scheduler.step()
+            with torch.no_grad():
+                epoch_valid_loss = trainner.validate(val_loader, model, criterion)
 
-        if patience > args.early_stop:
-            break
+            # Log train and validation losses with MLflow
+            mlflow.log_metric("train_loss", trainner.train_losses[-1], step=epoch)
+            mlflow.log_metric("val_loss", trainner.val_losses[-1], step=epoch)
 
-    torch.save(model, "checkpoint/last_model.pth")
-    trainner.plot_losses("checkpoint")
+            if epoch_valid_loss > vald_loss:
+                print(f"---> Early stopping criterion {patience}/{args.early_stop}")
+                patience += 1
+            else:
+                patience = 0
+                vald_loss = epoch_valid_loss
+                torch.save(model, "models/auto_encoder.pth")
+                trainner.plot_losses("models")
+
+            if patience > args.early_stop or epoch == args.epochs - 1:
+                # save only the best model
+                mlflow.pytorch.log_model(pytorch_model=model, artifact_path=run_name)
+                break
+
+        # torch.save(model, "models/auto_encoder_last_epoch.pth")
+        trainner.plot_losses("models")
+
+        params = {
+            "dataset": dataset,
+            "epochs": args.epochs,
+            "patience": args.early_stop,
+            "loss": args.loss,
+            "batch_size": args.batch_size,
+            "learning_rate": args.lr,
+            "weight_decay": args.weight_decay,
+        }
+
+        mlflow.log_params(params)

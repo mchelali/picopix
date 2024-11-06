@@ -1,8 +1,6 @@
 import argparse
 import os
 import numpy as np
-import math
-import itertools
 import time
 import datetime
 import sys
@@ -17,15 +15,20 @@ import torch.nn.functional as F
 import torch
 from PIL import Image
 
+from mlflow import MlflowClient
+import mlflow
+
 from utils import Pix2pixDataset
 from model.pix2pix import GeneratorUNet, Discriminator, weights_init_normal
+
+CLIENT = MlflowClient(tracking_uri="http://r_and_d:8002")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image_dir",
         type=str,
-        default="landscape_images/",
+        default="dataset/",
         help="Directory containing all images in the dataset",
     )
     parser.add_argument(
@@ -59,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_cpu",
         type=int,
-        default=8,
+        default=1,
         help="number of cpu threads to use during batch generation",
     )
     parser.add_argument(
@@ -78,17 +81,23 @@ if __name__ == "__main__":
         help="interval between sampling of images from generators",
     )
     parser.add_argument(
-        "--checkpoint_interval",
+        "--models_interval",
         type=int,
         default=-1,
-        help="interval between model checkpoints",
+        help="interval between model modelss",
     )
-    opt = parser.parse_args()
-    print(opt)
+    args = parser.parse_args()
 
-    os.makedirs("checkpoint/", exist_ok=True)
+    dataset = os.path.dirname(args.image_dir).split(os.path.sep)[-1]
 
-    root_data = os.path.abspath(opt.image_dir)
+    # Define experiment name, run name and artifact_path name
+    mlflow_experiment = mlflow.set_experiment("Colorizator")
+    run_name = f"pix2pix_{dataset}"
+    artifact_path = "model"
+
+    os.makedirs("models/", exist_ok=True)
+
+    root_data = os.path.abspath(args.image_dir)
 
     cuda = True if torch.cuda.is_available() else False
 
@@ -100,7 +109,7 @@ if __name__ == "__main__":
     lambda_pixel = 100
 
     # Calculate output of image discriminator (PatchGAN)
-    patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
+    patch = (1, args.img_height // 2**4, args.img_width // 2**4)
 
     # Initialize generator and discriminator
     generator = GeneratorUNet()
@@ -112,11 +121,11 @@ if __name__ == "__main__":
         criterion_GAN.cuda()
         criterion_pixelwise.cuda()
 
-    if opt.epoch != 0:
+    if args.epoch != 0:
         # Load pretrained models
-        generator.load_state_dict(torch.load("checkpoint/generator_%d.pth" % opt.epoch))
+        generator.load_state_dict(torch.load("models/generator_%d.pth" % args.epoch))
         discriminator.load_state_dict(
-            torch.load("checkpoint/discriminator_%d.pth" % opt.epoch)
+            torch.load("models/discriminator_%d.pth" % args.epoch)
         )
     else:
         # Initialize weights
@@ -125,16 +134,16 @@ if __name__ == "__main__":
 
     # Optimizers
     optimizer_G = torch.optim.Adam(
-        generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2)
+        generator.parameters(), lr=args.lr, betas=(args.b1, args.b2)
     )
     optimizer_D = torch.optim.Adam(
-        discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2)
+        discriminator.parameters(), lr=args.lr, betas=(args.b1, args.b2)
     )
 
     # Configure dataloaders
     transforms_ = transforms.Compose(
         [
-            transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+            transforms.Resize((args.img_height, args.img_width), Image.BICUBIC),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
@@ -142,9 +151,9 @@ if __name__ == "__main__":
 
     dataloader = DataLoader(
         Pix2pixDataset(f"{root_data}/train", transforms=transforms_),
-        batch_size=opt.batch_size,
+        batch_size=args.batch_size,
         shuffle=True,
-        num_workers=opt.n_cpu,
+        num_workers=args.n_cpu,
     )
 
     val_dataloader = DataLoader(
@@ -164,10 +173,10 @@ if __name__ == "__main__":
         real_B = Variable(imgs[1].type(Tensor))
         fake_B = generator(real_A)
         img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
-        os.makedirs("checkpoint/%s/" % "validation", exist_ok=True)
+        os.makedirs("models/%s/" % "validation", exist_ok=True)
         save_image(
             img_sample,
-            "checkpoint/%s/%s.png" % ("validation", batches_done),
+            "models/%s/%s.png" % ("validation", batches_done),
             nrow=5,
             normalize=True,
         )
@@ -177,101 +186,125 @@ if __name__ == "__main__":
     # ----------
 
     prev_time = time.time()
+    with mlflow.start_run(run_name=run_name) as run:
+        for epoch in range(args.epoch, args.n_epochs):
+            avg_loss_G = 0
+            avg_loss_D = 0
+            for i, (A, B) in enumerate(dataloader):
 
-    for epoch in range(opt.epoch, opt.n_epochs):
-        for i, (A, B) in enumerate(dataloader):
+                # Model inputs
+                real_A = Variable(A.type(Tensor))
+                real_B = Variable(B.type(Tensor))
 
-            # Model inputs
-            real_A = Variable(A.type(Tensor))
-            real_B = Variable(B.type(Tensor))
-
-            # Adversarial ground truths
-            valid = Variable(
-                Tensor(np.ones((real_A.size(0), *patch))), requires_grad=False
-            )
-            fake = Variable(
-                Tensor(np.zeros((real_A.size(0), *patch))), requires_grad=False
-            )
-
-            # ------------------
-            #  Train Generators
-            # ------------------
-
-            optimizer_G.zero_grad()
-
-            # GAN loss
-            fake_B = generator(real_A)
-            pred_fake = discriminator(fake_B, real_A)
-            loss_GAN = criterion_GAN(pred_fake, valid)
-            # Pixel-wise loss
-            loss_pixel = criterion_pixelwise(fake_B, real_B)
-
-            # Total loss
-            loss_G = loss_GAN + lambda_pixel * loss_pixel
-
-            loss_G.backward()
-
-            optimizer_G.step()
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            optimizer_D.zero_grad()
-
-            # Real loss
-            pred_real = discriminator(real_B, real_A)
-            loss_real = criterion_GAN(pred_real, valid)
-
-            # Fake loss
-            pred_fake = discriminator(fake_B.detach(), real_A)
-            loss_fake = criterion_GAN(pred_fake, fake)
-
-            # Total loss
-            loss_D = 0.5 * (loss_real + loss_fake)
-
-            loss_D.backward()
-            optimizer_D.step()
-
-            # --------------
-            #  Log Progress
-            # --------------
-
-            # Determine approximate time left
-            batches_done = epoch * len(dataloader) + i
-            batches_left = opt.n_epochs * len(dataloader) - batches_done
-            time_left = datetime.timedelta(
-                seconds=batches_left * (time.time() - prev_time)
-            )
-            prev_time = time.time()
-
-            # Print log
-            sys.stdout.write(
-                "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s"
-                % (
-                    epoch,
-                    opt.n_epochs,
-                    i,
-                    len(dataloader),
-                    loss_D.item(),
-                    loss_G.item(),
-                    loss_pixel.item(),
-                    loss_GAN.item(),
-                    time_left,
+                # Adversarial ground truths
+                valid = Variable(
+                    Tensor(np.ones((real_A.size(0), *patch))), requires_grad=False
                 )
-            )
+                fake = Variable(
+                    Tensor(np.zeros((real_A.size(0), *patch))), requires_grad=False
+                )
 
-            # If at sample interval save image
-            if batches_done % opt.sample_interval == 0:
-                sample_images(batches_done)
+                # ------------------
+                #  Train Generators
+                # ------------------
 
-        # if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
-        # Save model checkpoints
+                optimizer_G.zero_grad()
+
+                # GAN loss
+                fake_B = generator(real_A)
+                pred_fake = discriminator(fake_B, real_A)
+                loss_GAN = criterion_GAN(pred_fake, valid)
+                # Pixel-wise loss
+                loss_pixel = criterion_pixelwise(fake_B, real_B)
+
+                # Total loss
+                loss_G = loss_GAN + lambda_pixel * loss_pixel
+                avg_loss_G += loss_G.item()
+
+                loss_G.backward()
+
+                optimizer_G.step()
+
+                # ---------------------
+                #  Train Discriminator
+                # ---------------------
+
+                optimizer_D.zero_grad()
+
+                # Real loss
+                pred_real = discriminator(real_B, real_A)
+                loss_real = criterion_GAN(pred_real, valid)
+
+                # Fake loss
+                pred_fake = discriminator(fake_B.detach(), real_A)
+                loss_fake = criterion_GAN(pred_fake, fake)
+
+                # Total loss
+                loss_D = 0.5 * (loss_real + loss_fake)
+                avg_loss_D += loss_D.item()
+
+                loss_D.backward()
+                optimizer_D.step()
+
+                # --------------
+                #  Log Progress
+                # --------------
+
+                # Determine approximate time left
+                batches_done = epoch * len(dataloader) + i
+                batches_left = args.n_epochs * len(dataloader) - batches_done
+                time_left = datetime.timedelta(
+                    seconds=batches_left * (time.time() - prev_time)
+                )
+                prev_time = time.time()
+
+                # Print log
+                sys.stdout.write(
+                    "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s"
+                    % (
+                        epoch,
+                        args.n_epochs,
+                        i,
+                        len(dataloader),
+                        loss_D.item(),
+                        loss_G.item(),
+                        loss_pixel.item(),
+                        loss_GAN.item(),
+                        time_left,
+                    )
+                )
+
+                # If at sample interval save image
+                if batches_done % args.sample_interval == 0:
+                    sample_images(batches_done)
+
+        mlflow.log_metric("loss_G", avg_loss_G / len(dataloader), step=epoch)
+        mlflow.log_metric("loss_D", avg_loss_D / len(dataloader), step=epoch)
+        # if opt.models_interval != -1 and epoch % opt.models_interval == 0:
+        # Save model modelss
         torch.save(
             generator.state_dict(),
-            "checkpoint/generator_%d.pth" % epoch,
+            "models/generator_%d.pth" % epoch,
         )
         torch.save(
             discriminator.state_dict(),
-            "checkpoint/discriminator_%d.pth" % epoch,
+            "models/discriminator_%d.pth" % epoch,
         )
+        mlflow.pytorch.log_model(
+            pytorch_model=generator,
+            artifact_path=f"{artifact_path}/generator_{run_name}.pth",
+        )
+        mlflow.pytorch.log_model(
+            pytorch_model=generator,
+            artifact_path=f"{artifact_path}/discriminator_{run_name}.pth",
+        )
+
+        params = {
+            "dataset": dataset,
+            "epochs": args.n_epochs,
+            "criterion_GAN": "MSELoss",
+            "criterion_pixelwise": "L1Loss",
+            "batch_size": args.batch_size,
+            "learning_rate": args.lr,
+        }
+        mlflow.log_params(params)

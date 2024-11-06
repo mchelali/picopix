@@ -17,7 +17,7 @@ COCO_URLS = {
 }
 
 # Directories for downloading and organizing dataset
-BASE_DIR = "./coco_dataset"
+BASE_DIR = "./dataset/coco_dataset"
 TRAIN_DIR = os.path.join(BASE_DIR, "train")
 VAL_DIR = os.path.join(BASE_DIR, "val")
 TEST_DIR = os.path.join(BASE_DIR, "test")
@@ -61,7 +61,7 @@ def split_train_vald(zip_path, train_dir, val_dir, img_ids_filter):
         random.shuffle(file_list)
 
         # Calculate split index (e.g., 80% train, 20% validation)
-        split_index = int(0.2 * len(file_list))
+        split_index = int(0.01 * len(file_list))
         train_files = file_list[:split_index]
         val_files = file_list[split_index : split_index + split_index]
 

@@ -1,10 +1,14 @@
 # Research & Developpement
 
-This project contains scripts to train and evaluate the model.
+This project contains scripts to train and evaluate a model designed to colorize a gray scale images.
+In our case, we select two public GitHubs projects to train and evaluate our models. These Github projects are listed bellow: 
+- [1] https://github.com/williamcfrancis/CNN-Image-Colorization-Pytorch
+- [2] https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/pix2pix/pix2pix.py
 
-We remembre that the goal of the prject is to colorize grayscale images with deep learning method. In our case, we select a public GitHub to train and evaluate our model: https://github.com/williamcfrancis/CNN-Image-Colorization-Pytorch
+The proposed model in [1] is the pix2pix model is a conditionnal GAN that can be trained to generate images according to the target images. In our case, it is trainned to generate color images.
 
-The proposed model propose a simple CNN composed with ResNet34 as Discriminator to encode the gray image into a vector in lattent space. The Generator 
+The proposed model in[2] propose an autoencoder that is composed with ResNet34 to encode the gray image into a vector in lattent space and reversed ResNet34 to upscale the vector into original spatiale size and generate a color image. 
+
 ## Model
 
 # Color space
