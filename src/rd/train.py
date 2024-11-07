@@ -6,12 +6,17 @@ import torch.nn as nn
 import argparse
 import torchvision.transforms as T
 import cv2
-import glob
+from PIL import Image
 
 from mlflow import MlflowClient
 import mlflow
 
 from utils import ColorizeData, Trainer
+
+CLIENT = MlflowClient(tracking_uri="http://r_and_d:8002")
+# Define experiment name, run name and artifact_path name
+mlflow_experiment = mlflow.set_experiment("Colorizator")
+mlflow.autolog()
 
 
 def clean_train_imgs(folder_path):  # remove images with no color
@@ -72,11 +77,8 @@ if __name__ == "__main__":
     model = Net().to(device)
 
     dataset = os.path.dirname(args.image_dir).split(os.path.sep)[-1]
-
-    # Define experiment name, run name and artifact_path name
-    mlflow_experiment = mlflow.set_experiment("Colorizator")
     run_name = f"autoencoder_{dataset}"
-    client = MlflowClient(tracking_uri=os.getenv("MLFLOW_TRACKING_URI"))
+    artifact_path = "autoencoder"
 
     if args.loss == "mse":  # Initialize loss according to choice
         criterion = nn.MSELoss().to(device)
@@ -92,17 +94,29 @@ if __name__ == "__main__":
     # Training
     root_data = os.path.abspath(args.image_dir)
 
-    train_transforms = T.Compose([T.RandomResizedCrop(224), T.RandomHorizontalFlip()])
-    train_imagefolder = ColorizeData(f"{root_data}/train", train_transforms)
+    transforms = T.Compose(
+        [
+            T.Resize((256, 256), Image.BICUBIC),
+            # T.ToTensor(),
+            # T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
+    # transforms = T.Compose([T.RandomResizedCrop(224), T.RandomHorizontalFlip()])
+    train_imagefolder = ColorizeData(f"{root_data}/train", transforms)
     train_loader = torch.utils.data.DataLoader(
         train_imagefolder, batch_size=args.batch_size, shuffle=True
     )
 
     # Validation
-    val_transforms = T.Compose([T.Resize(256), T.CenterCrop(224)])
-    val_imagefolder = ColorizeData(f"{root_data}/val", val_transforms)
+    val_imagefolder = ColorizeData(f"{root_data}/val", transforms)
     val_loader = torch.utils.data.DataLoader(
         val_imagefolder, batch_size=args.batch_size, shuffle=False
+    )
+
+    # Test
+    test_imagefolder = ColorizeData(f"{root_data}/test", transforms)
+    test_loader = torch.utils.data.DataLoader(
+        test_imagefolder, batch_size=args.batch_size, shuffle=False
     )
 
     print("Image preprocessing completed!")
@@ -111,7 +125,7 @@ if __name__ == "__main__":
     patience = 0
 
     # Store information in tracking server
-    with mlflow.start_run(run_name=run_name) as run:
+    with mlflow.start_run(run_name=run_name):
         # Train model
         for epoch in range(args.epochs):
             # Train for one epoch, then validate
@@ -130,17 +144,26 @@ if __name__ == "__main__":
             else:
                 patience = 0
                 vald_loss = epoch_valid_loss
-                torch.save(model, "models/auto_encoder.pth")
+                torch.save(model.state_dict(), "models/auto_encoder.pth")
                 trainner.plot_losses("models")
 
             if patience > args.early_stop or epoch == args.epochs - 1:
                 # save only the best model
-                mlflow.pytorch.log_model(pytorch_model=model, artifact_path=run_name)
+                mlflow.pytorch.log_model(
+                    pytorch_model=model, artifact_path=artifact_path
+                )
                 break
 
         # torch.save(model, "models/auto_encoder_last_epoch.pth")
         trainner.plot_losses("models")
 
+        state_dict = torch.load("models/auto_encoder.pth", map_location="cpu")
+        model.load_state_dict(state_dict)
+        model.to(device)
+        with torch.no_grad():
+            test_error = trainner.validate(test_loader, model, criterion)
+
+        mlflow.log_metric("test_error", test_error)
         params = {
             "dataset": dataset,
             "epochs": args.epochs,
