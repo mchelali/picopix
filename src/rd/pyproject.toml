@@ -20,6 +20,7 @@ mlflow = "^2.17.2"
 requests = "^2.32.3"
 pycocotools = "^2.0.8"
 python-dotenv = "^1.0.1"
+boto3 = "^1.35.58"
 
 
 [build-system]
