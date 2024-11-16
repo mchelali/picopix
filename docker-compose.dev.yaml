@@ -26,14 +26,17 @@ services:
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_DEFAULT_REGION=${AWS_REGION_NAME}
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     ports:
       - "8002:8002"
     volumes:
       - ./src/rd:/r_and_d
       - ./dataset/:/r_and_d/dataset
       - ./models/:/r_and_d/models
-      - .env:/r_and_d/.env
+      # - .env:/r_and_d/.env
+    depends_on:
+      - minio
     networks:
       - localhost
 
@@ -55,8 +58,8 @@ services:
     image: minio/minio
     container_name: minio
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
       MINIO_VOLUMES: /data
     volumes:
       - ./minio_data:/data
@@ -68,7 +71,7 @@ services:
     command: "minio server --console-address :9001"
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
