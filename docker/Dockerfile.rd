@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-RUN apt update && apt install -y gcc libpq-dev ffmpeg libopencv-dev git
+RUN apt update && apt install -y gcc libpq-dev ffmpeg libopencv-dev git curl nano vim
 
 # Installation des dépendances
 WORKDIR /r_and_d
