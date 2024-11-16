@@ -5,6 +5,6 @@ stop:
 
 stdev:
 	# poetry export --without-hashes --format=requirements.txt > requirements.txt &&
-	docker compose -f docker-compose.dev.yaml -p picopix up -d --build
+	docker compose -f docker-compose.dev.yaml -p picopix up -d 
 spdev:
 	docker compose -f docker-compose.dev.yaml -p picopix down
