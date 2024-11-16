@@ -163,6 +163,14 @@ if __name__ == "__main__":
         num_workers=1,
     )
 
+    # Test
+    test_dataloader = DataLoader(
+        Pix2pixDataset(f"{root_data}/test", transforms=transforms_),
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=1,
+    )
+
     # Tensor type
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
@@ -284,21 +292,35 @@ if __name__ == "__main__":
         # Save model modelss
         torch.save(
             generator.state_dict(),
-            "models/generator_%d.pth" % epoch,
+            "models/generator.pth",
         )
         torch.save(
             discriminator.state_dict(),
-            "models/discriminator_%d.pth" % epoch,
+            "models/discriminator.pth",
         )
         mlflow.pytorch.log_model(
             pytorch_model=generator,
-            artifact_path=f"{artifact_path}/generator_{run_name}.pth",
+            artifact_path=f"{artifact_path}/{run_name}_generator.pth",
         )
         mlflow.pytorch.log_model(
             pytorch_model=generator,
-            artifact_path=f"{artifact_path}/discriminator_{run_name}.pth",
+            artifact_path=f"{artifact_path}/{run_name}_discriminator.pth",
         )
 
+        state_dict = torch.load("models/generator.pth", map_location="cpu")
+        generator.load_state_dict(state_dict)
+        if cuda:
+            generator = generator.cuda()
+        with torch.no_grad():
+            test_error = 0
+            for i, (A, B) in enumerate(test_dataloader):
+                real_A = Variable(A.type(Tensor))
+                real_B = Variable(B.type(Tensor))
+                fake_B = generator(real_A)
+                test_error += criterion_GAN(fake_B, real_B).item()
+
+            test_error = test_error / len(test_dataloader)
+        mlflow.log_metric("test_error", test_error)
         params = {
             "dataset": dataset,
             "epochs": args.n_epochs,
