@@ -1,4 +1,5 @@
 import pytest
+import torch
 from torchvision import transforms
 
 from utils import *
