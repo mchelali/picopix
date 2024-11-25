@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # Define experiment name, run name and artifact_path name
     mlflow_experiment = mlflow.set_experiment("Colorizator")
     run_name = f"pix2pix_{dataset}"
-    artifact_path = "model"
+    artifact_path = "pix2pix"
 
     os.makedirs("models/", exist_ok=True)
 

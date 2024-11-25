@@ -40,12 +40,14 @@ def upload_model_to_minio(
     Returns:
         None
     """
+    print("============= ", model_name)
     try:
         # Téléchargement des artefacts du modèle
         model_path = mlflow_client.download_artifacts(
             best_models[model_name][1], model_name
         )
         model_path = Path(model_path)
+        print("----------- ", model_path)
 
         if model_path.is_dir():
             # Parcours de tous les fichiers et sous-dossiers
@@ -88,18 +90,13 @@ def find_best_models(experiment_id: str) -> Dict[str, Tuple[float, str]]:
 
     # Parcourir toutes les exécutions de l'expérience
     for run in mlflow_client.search_runs(experiment_id):
-        model_name = run.data.tags.get("mlflow.runName", "").split("_")[
-            0
-        ]  # Nom du modèle
-        validation_loss = run.data.metrics.get("val_loss")  # Métirque de validation
-
-        if validation_loss is not None:
+        model_name = run.data.tags.get("mlflow.runName", "").split("_")[0]
+        test_error = run.data.metrics.get("test_error")  # Métirque de validation
+        print(model_name, test_error)
+        if test_error is not None:
             # Vérifier si ce modèle est meilleur que le précédent
-            if (
-                model_name not in best_models
-                or validation_loss < best_models[model_name][0]
-            ):
-                best_models[model_name] = (validation_loss, run.info.run_id)
+            if model_name not in best_models or test_error < best_models[model_name][0]:
+                best_models[model_name] = (test_error, run.info.run_id)
 
     return best_models
 
