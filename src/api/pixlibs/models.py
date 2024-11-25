@@ -41,7 +41,7 @@ class COLOR_Image(Base):
 
     color_image_id = Column(Integer, primary_key=True, index=True)
     bw_image_id = Column(Integer, ForeignKey("bw_images.bw_image_id"))
-    mlmodel_id = Column(Integer, ForeignKey("models.mlmodel_id"))
+    mlmodel_id = Column(Integer, ForeignKey("mlmodels.mlmodel_id"))
     username = Column(String(64), ForeignKey("users.username"))
     filename = Column(String, nullable=False, index=True)
     filepath = Column(String, nullable=False, index=True)
