@@ -11,7 +11,7 @@ from PIL import Image
 from mlflow import MlflowClient
 import mlflow
 
-from utils import ColorizeData, Trainer
+from utils import LABColorDataset, Trainer
 
 CLIENT = MlflowClient(tracking_uri="http://r_and_d:8002")
 # Define experiment name, run name and artifact_path name
@@ -102,19 +102,19 @@ if __name__ == "__main__":
         ]
     )
     # transforms = T.Compose([T.RandomResizedCrop(224), T.RandomHorizontalFlip()])
-    train_imagefolder = ColorizeData(f"{root_data}/train", transforms)
+    train_imagefolder = LABColorDataset(f"{root_data}/train", transforms)
     train_loader = torch.utils.data.DataLoader(
         train_imagefolder, batch_size=args.batch_size, shuffle=True
     )
 
     # Validation
-    val_imagefolder = ColorizeData(f"{root_data}/val", transforms)
+    val_imagefolder = LABColorDataset(f"{root_data}/val", transforms)
     val_loader = torch.utils.data.DataLoader(
         val_imagefolder, batch_size=args.batch_size, shuffle=False
     )
 
     # Test
-    test_imagefolder = ColorizeData(f"{root_data}/test", transforms)
+    test_imagefolder = LABColorDataset(f"{root_data}/test", transforms)
     test_loader = torch.utils.data.DataLoader(
         test_imagefolder, batch_size=args.batch_size, shuffle=False
     )
