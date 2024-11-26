@@ -18,4 +18,4 @@ EXPOSE 8002
 
 # Lancer l'application FastAPI
 CMD ["tail", "-f", "/dev/null"]
-# CMD ["mlflow server --host 0.0.0.0 --port 8002"]
+# CMD ["poetry", "run", "mlflow", "server", "--host", "0.0.0.0", "--port", "8002"]
