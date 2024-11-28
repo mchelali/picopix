@@ -6,6 +6,7 @@
 <div align="center">
   <img src="assets/example.jpg" alt="Description de l'image" style="width:80%;">
   <p><em>Figure 1: Un exemple de colorisation d’image.</em></p>
+  <p>Source : <em>https://www.vidnoz.com/ai-solutions/ai-colorize-photo.html</em></p>
 </div>
 
 Celui-ci devra pouvoir être délivré par l’intermédiaire d’une API, et pourra être sollicité par n’importe quel type d’interface graphique (page web, application mobile). Dans le cadre du projet, nous proposerons une interface graphique basée sur Streamlit afin d’illustrer son application concrète. 
