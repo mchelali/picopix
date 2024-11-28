@@ -3,6 +3,7 @@
 # Declarative database class 
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
+from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -20,3 +21,11 @@ class Users(Base):
     isadmin = Column(Boolean, default=False, index=True)
     disabled= Column(Boolean, default=False, index=True)
     pref_model = Column(Integer, default=0, index=True)
+
+class BW_Images(Base):
+    __tablename__ = "bw_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer,index=True)    
+    filename = Column(String(64), unique=True)
+    upload_date = Column(DateTime(timezone=True), server_default=func.now())

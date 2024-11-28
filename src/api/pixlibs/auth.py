@@ -111,3 +111,9 @@ async def get_current_user(token: Annotated[str,Depends(oauth2_bearer)]):
         return {'username':username, 'id': user_id}
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail='Could not validate user.' )
+
+# get authenticated user data
+def get_user_data(db: db_dependency, id: int):
+    user = db.query(models.Users).filter(models.Users.id == id).first()
+    print(f"prenom:{user.firstname}\nnom:{user.lastname}\nmodèle préféré:{user.pref_model}\n")
+    return user
