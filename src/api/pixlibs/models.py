@@ -29,3 +29,12 @@ class BW_Images(Base):
     user_id = Column(Integer,index=True)    
     filename = Column(String(64), unique=True)
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
+
+class COLOR_Images(Base):
+    __tablename__ = "color_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer,index=True)    
+    bwimage_id = Column(Integer,index=True) 
+    filename = Column(String(64), unique=True)
+    creation_date = Column(DateTime(timezone=True), server_default=func.now())

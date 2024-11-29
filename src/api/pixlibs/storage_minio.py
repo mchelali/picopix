@@ -1,3 +1,7 @@
+# Project PicoPix
+# Authors : Mohamed CHELALI, Daniel LEWANDOWSKI, Yannick OREAL
+# S3 Storage connexion
+
 from minio import Minio
 from dotenv import load_dotenv
 import os

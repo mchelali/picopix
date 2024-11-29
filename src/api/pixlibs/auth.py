@@ -56,20 +56,6 @@ def get_db():
 # opened database condition
 db_dependency = Annotated[Session, Depends(get_db)]
 
-# creation user function
-@router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
-    # declare new object "Users"
-    create_user_model = models.Users(
-        username=create_user_request.username,
-        firstname=create_user_request.firstname,
-        lastname=create_user_request.lastname,
-        hashed_password=bcrypt_context.hash(create_user_request.password),
-    )
-    # SQL ADD request
-    db.add(create_user_model)
-    db.commit()
-
 # token attribution function (call authenticate function)
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],db: db_dependency):
@@ -111,6 +97,20 @@ async def get_current_user(token: Annotated[str,Depends(oauth2_bearer)]):
         return {'username':username, 'id': user_id}
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail='Could not validate user.' )
+
+# creation user function
+@router.post("/create_user", status_code=status.HTTP_201_CREATED)
+async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
+    # declare new object "Users"
+    create_user_model = models.Users(
+        username=create_user_request.username,
+        firstname=create_user_request.firstname,
+        lastname=create_user_request.lastname,
+        hashed_password=bcrypt_context.hash(create_user_request.password),
+    )
+    # SQL ADD request
+    db.add(create_user_model)
+    db.commit()
 
 # get authenticated user data
 def get_user_data(db: db_dependency, id: int):

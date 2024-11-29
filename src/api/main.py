@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc,asc
 from typing import Annotated
 from pydantic import BaseModel
+from starlette.background import BackgroundTasks
 from pixlibs.models import Users
 from pixlibs.models import Base
 from pixlibs.database import engine, SessionLocal
@@ -98,6 +99,8 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, file: Upload
 
     Parameters
     ----------
+    user: oauth2 token required
+    db: postgres connexion required
     file: uploaded file  (File)
 
     Returns
@@ -132,6 +135,7 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, file: Upload
     
     # set new filename (bw_userid_yyyymmdd-hhmmss.jpg)
     s3filename = f"bw_{user['id']}_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
+    
     # write file to bucket
     try:
         storageclient.fput_object(AWS_BUCKET_MEDIA,s3filename,f"cache{tempfilename.name}","image/jpg")
@@ -141,22 +145,27 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, file: Upload
             os.remove(f"cache{tempfilename.name}")
     except Exception:
         raise HTTPException(status_code=500, detail='Upload to bucket error.')   
-    finally:
-        # write database entry for image
+
+    # add bw image ref to database
+    try:
         create_bw_image_model = pixlibs.models.BW_Images(
         filename=s3filename,
         user_id=user['id'],
         )
         db.add(create_bw_image_model)
         db.commit()
-        return {"message": f"Successfully uploaded {file.filename}"}
+    except Exception:
+        raise HTTPException(status_code=500, detail='Database write error.')
+
+    # return          
+    return {"message": f"Successfully uploaded {file.filename}"}
 
 # Image validity function
 def is_valid_image(imgfilename: str):
     """
     Description
     -----------
-    this function checks image is valid (format, greyscale, height, width, size)
+    this function checks if image is valid (format, greyscale, height, width, size)
 
     Parameters
     ----------
@@ -190,5 +199,88 @@ def is_valid_image(imgfilename: str):
             return False
     except Exception:
         return False
-    finally:   
-        return True
+    
+    # return
+    return True
+
+# bw image traitement
+@app.get('/colorize_bw_image')
+async def colorize_bw_image(user: user_dependency, db: db_dependency,bg_tasks: BackgroundTasks):
+    """
+    Description
+    -----------
+    endpoint to colorize last black & white image uploaded
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    jpeg file
+    """
+    # check authentication 
+    if user is None:
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    
+    # check last uploaded file (or none)
+    try:
+        lastimageobj = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.user_id == user["id"]).order_by(pixlibs.models.BW_Images.filename.desc()).first()
+    except:
+        raise HTTPException(status_code=500, detail='Database read error.')        
+
+    # copy bw image from bucket to server
+    tempbwfilename = tempfile.NamedTemporaryFile()
+    try:
+        storageclient.fget_object(AWS_BUCKET_MEDIA,lastimageobj.filename,f"cache{tempbwfilename.name}.jpg")
+    except Exception:
+        raise HTTPException(status_code=500, detail='File write error on server (s3->server).')
+
+    # image colorization
+    try:
+        grayscale_image = cv2.imread(f"cache{tempbwfilename.name}.jpg", cv2.IMREAD_GRAYSCALE)
+        rgb_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2RGB)
+        cv2.fillPoly(rgb_image, [np.array([[170,50],[240, 40],[240, 150], [210, 100], [130, 130]], np.int32)], (255,150,255))
+    except Exception:
+        raise HTTPException(status_code=500, detail='Image read error or colorize error on server.')      
+
+    # write colorized image to server
+    tempcolorfilename = tempfile.NamedTemporaryFile()
+    try:
+        cv2.imwrite(f"cache{tempcolorfilename.name}.jpg", rgb_image)
+    except Exception:
+        raise HTTPException(status_code=500, detail='File write error on server (server).')
+
+     # write colorized image from server to bucket
+    s3colorfilename = f"color_{lastimageobj.user_id}_{lastimageobj.id}_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
+    try:
+        storageclient.fput_object(AWS_BUCKET_MEDIA,s3colorfilename,f"cache{tempcolorfilename.name}.jpg","image/jpg")
+    except Exception:
+        raise HTTPException(status_code=500, detail='File write error on server (server->s3).')
+
+    # delete temporary files
+    try:
+        if os.path.exists(f"cache{tempbwfilename.name}.jpg"):
+            # if file writed then delete temporary file
+            os.remove(f"cache{tempbwfilename.name}.jpg")
+        if os.path.exists(f"cache{tempcolorfilename.name}.jpg"):
+            # if file writed then add background task to delete temporary file after FileResponse
+            bg_tasks.add_task(os.remove, f"cache{tempcolorfilename.name}.jpg")
+    except:
+        raise HTTPException(status_code=500, detail='Delete file error on server.')             
+
+    # add colororized image ref to database
+    try:
+        create_color_image_model = pixlibs.models.COLOR_Images(
+        filename=s3colorfilename,
+        user_id=user['id'],
+        bwimage_id=lastimageobj.id
+        )
+        db.add(create_color_image_model)
+        db.commit()
+    except:
+        raise HTTPException(status_code=500, detail='Database write error.')        
+
+    # return image
+    return FileResponse(f"cache{tempcolorfilename.name}.jpg", media_type="image/jpeg", filename=s3colorfilename,background=bg_tasks)
