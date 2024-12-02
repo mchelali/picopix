@@ -17,8 +17,10 @@ from pixlibs.models import Users
 from pixlibs.models import Base
 from pixlibs.database import engine, SessionLocal
 from pixlibs.auth import get_current_user, get_user_data
-from pixlibs.storage_minio import get_storage, storageclient
-import pixlibs.storage_minio
+#from pixlibs.storage_minio import get_storage, storageclient
+#import pixlibs.storage_minio
+from pixlibs.storage_boto3 import get_storage, storageclient
+import pixlibs.storage_boto3
 import pixlibs.auth
 import tempfile
 import os
@@ -91,7 +93,7 @@ async def favicon():
 
 # black & white image upload
 @app.post('/upload_bw_image')
-async def upload_bw_image(user: user_dependency, db: db_dependency, file: UploadFile = File(...)):
+async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, file: UploadFile = File(...)):
     """
     Description
     -----------
@@ -138,8 +140,8 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, file: Upload
     
     # write file to bucket
     try:
-        storageclient.fput_object(AWS_BUCKET_MEDIA,s3filename,f"cache{tempfilename.name}","image/jpg")
-        #storageclient.Bucket(AWS_BUCKET_MEDIA,).put_object(f"cache{tempfilename.name}",s3filename)
+        #s3client.fput_object(AWS_BUCKET_MEDIA,s3filename,f"cache{tempfilename.name}","image/jpg")
+        s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempfilename.name}",s3filename)
         if os.path.exists(f"cache{tempfilename.name}"):
             # if file writed then delete temporary file
             os.remove(f"cache{tempfilename.name}")
@@ -176,8 +178,8 @@ def is_valid_image(imgfilename: str):
     boolean
     """
     try:
-        # check file size
-        if (os.path.getsize(imgfilename)/1024)>IMG_SIZE_KB_MAX:
+    # check file size
+        if (os.path.getsize(imgfilename)/1024)>int(IMG_SIZE_KB_MAX):
             return False
         # open image
         img=cv2.imread(imgfilename)
@@ -193,9 +195,9 @@ def is_valid_image(imgfilename: str):
             return False
         # check height and width
         h,w,c = img.shape
-        if (w<IMG_SIZE_W_MIN or h<IMG_SIZE_H_MIN):
+        if (w<int(IMG_SIZE_W_MIN) or h<int(IMG_SIZE_H_MIN)):
             return False
-        if (w>IMG_SIZE_W_MAX or h>IMG_SIZE_H_MAX):  
+        if (w>int(IMG_SIZE_W_MAX) or h>int(IMG_SIZE_H_MAX)):  
             return False
     except Exception:
         return False
@@ -205,7 +207,7 @@ def is_valid_image(imgfilename: str):
 
 # bw image traitement
 @app.get('/colorize_bw_image')
-async def colorize_bw_image(user: user_dependency, db: db_dependency,bg_tasks: BackgroundTasks):
+async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, bg_tasks: BackgroundTasks):
     """
     Description
     -----------
@@ -233,7 +235,8 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency,bg_tasks: B
     # copy bw image from bucket to server
     tempbwfilename = tempfile.NamedTemporaryFile()
     try:
-        storageclient.fget_object(AWS_BUCKET_MEDIA,lastimageobj.filename,f"cache{tempbwfilename.name}.jpg")
+        s3client.Bucket(AWS_BUCKET_MEDIA,).download_file(lastimageobj.filename,f"cache{tempbwfilename.name}.jpg")
+        #s3client.fget_object(AWS_BUCKET_MEDIA,lastimageobj.filename,f"cache{tempbwfilename.name}.jpg")
     except Exception:
         raise HTTPException(status_code=500, detail='File write error on server (s3->server).')
 
@@ -254,8 +257,10 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency,bg_tasks: B
 
      # write colorized image from server to bucket
     s3colorfilename = f"color_{lastimageobj.user_id}_{lastimageobj.id}_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
+
     try:
-        storageclient.fput_object(AWS_BUCKET_MEDIA,s3colorfilename,f"cache{tempcolorfilename.name}.jpg","image/jpg")
+        s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempcolorfilename.name}.jpg",s3colorfilename)
+        #s3client.fput_object(AWS_BUCKET_MEDIA,s3colorfilename,f"cache{tempcolorfilename.name}.jpg","image/jpg")
     except Exception:
         raise HTTPException(status_code=500, detail='File write error on server (server->s3).')
 
@@ -265,7 +270,7 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency,bg_tasks: B
             # if file writed then delete temporary file
             os.remove(f"cache{tempbwfilename.name}.jpg")
         if os.path.exists(f"cache{tempcolorfilename.name}.jpg"):
-            # if file writed then add background task to delete temporary file after FileResponse
+            # if file writed then add background task to delete temporary file after FileResponse return
             bg_tasks.add_task(os.remove, f"cache{tempcolorfilename.name}.jpg")
     except:
         raise HTTPException(status_code=500, detail='Delete file error on server.')             
