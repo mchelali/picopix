@@ -8,8 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
-from . import database
-from . import models
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 import jwt
@@ -17,6 +15,8 @@ from jwt.exceptions import InvalidTokenError
 import os
 from dotenv import load_dotenv
 import logging
+from pixlibs import database
+from pixlibs import models
 
 # Ignore passlib warning
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -82,7 +82,7 @@ def authenticate_user(username: str, password: str, db):
 # token creation function
 def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     encode = {'sub':username, 'id': user_id}
-    expires = datetime.utcnow() + expires_delta
+    expires = datetime.now() + expires_delta
     encode.update({'exp':expires})
     return jwt.encode(encode, AUTH_SECRET_KEY, algorithm=AUTH_ALGORITHM)
 
@@ -109,8 +109,13 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         hashed_password=bcrypt_context.hash(create_user_request.password),
     )
     # SQL ADD request
-    db.add(create_user_model)
-    db.commit()
+    try:
+        db.add(create_user_model)
+        db.commit()
+    except:
+        raise HTTPException(status_code=500,detail='Could not create user.' )      
+    return {'message': f"User {create_user_request.username} created !"}
+
 
 # get authenticated user data
 def get_user_data(db: db_dependency, id: int):

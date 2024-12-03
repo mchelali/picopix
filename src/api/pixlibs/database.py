@@ -4,7 +4,6 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 from dotenv import load_dotenv
 import os
 
@@ -16,6 +15,5 @@ DATABASE_URL = f"postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_
 
 # engine & session declaration
 engine = create_engine(DATABASE_URL, connect_args={})
-#SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 SessionLocal = sessionmaker(bind=engine)
 
