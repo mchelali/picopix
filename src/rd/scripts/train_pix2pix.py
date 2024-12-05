@@ -300,11 +300,11 @@ if __name__ == "__main__":
         )
         mlflow.pytorch.log_model(
             pytorch_model=generator,
-            artifact_path=f"{artifact_path}/{run_name}_generator.pth",
+            artifact_path=f"{artifact_path}/generator",
         )
         mlflow.pytorch.log_model(
             pytorch_model=generator,
-            artifact_path=f"{artifact_path}/{run_name}_discriminator.pth",
+            artifact_path=f"{artifact_path}/discriminator",
         )
 
         state_dict = torch.load("models/generator.pth", map_location="cpu")

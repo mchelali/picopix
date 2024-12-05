@@ -150,7 +150,7 @@ if __name__ == "__main__":
             if patience > args.early_stop or epoch == args.epochs - 1:
                 # save only the best model
                 mlflow.pytorch.log_model(
-                    pytorch_model=model, artifact_path=artifact_path
+                    pytorch_model=model, artifact_path=f"{artifact_path}/generator"
                 )
                 break
 

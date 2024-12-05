@@ -5,6 +5,7 @@ from botocore.client import Config
 import os
 from pathlib import Path
 from typing import Dict, Tuple
+import torch
 
 # Initialisation des clients MLflow et S3/MinIO
 mlflow_client = MlflowClient(tracking_uri="http://r_and_d:8002")
@@ -75,6 +76,77 @@ def upload_model_to_minio(
         print(f"Erreur lors de l'upload de {model_name} : {e}")
 
 
+def upload_model_to_minio2(
+    model_name: str, best_models: Dict[str, Tuple[float, str]]
+) -> None:
+    """
+    Télécharge le meilleur modèle depuis MLflow, le convertit en format PyTorch natif (state_dict),
+    et upload les fichiers dans le bucket MinIO avec versionnement incrémental.
+
+    Parameters:
+        model_name (str): Le nom du modèle à télécharger et uploader.
+        best_models (Dict[str, Tuple[float, str]]): Dictionnaire contenant les modèles avec
+                                                    leurs pertes de validation et leurs ID d'exécution.
+
+    Returns:
+        None
+    """
+    print(f"============= Uploading model: {model_name} =============")
+    try:
+        # Récupération de l'ID d'exécution
+        _, run_id = best_models[model_name]
+
+        # Téléchargement du modèle depuis MLflow
+        model_path = mlflow_client.download_artifacts(run_id, model_name)
+        print(model_path)
+        print(os.listdir(model_path))
+
+        model_path = Path(
+            f"{model_path}/generator/data/model.pth"
+        )  # Chemin typique des artefacts MLflow
+
+        if not model_path.exists():
+            raise FileNotFoundError(f"Fichier {model_path} introuvable.")
+
+        pytorch_model = torch.load(model_path, map_location="cpu")
+
+        response = s3_client.list_objects_v2(
+            Bucket=bucket_name, Prefix=f"{model_name}/"
+        )
+
+        # Extraire les indices des fichiers existants
+        existing_versions = []
+        if "Contents" in response:
+            for obj in response["Contents"]:
+                key = obj["Key"]
+                # Extraire l'indice du fichier (ex: my_model_v3.pth -> 3)
+                if key.endswith(".pth"):
+                    parts = key.split("_v")
+                    if len(parts) > 1 and parts[-1].replace(".pth", "").isdigit():
+                        existing_versions.append(int(parts[-1].replace(".pth", "")))
+
+        # Trouver le prochain index
+        next_version = max(existing_versions) + 1 if existing_versions else 1
+
+        # Sauvegarder le modèle avec l'index incrémenté
+        state_dict_path = f"{model_name}_v{next_version}.pth"
+        torch.save(pytorch_model, state_dict_path)
+
+        # Upload vers MinIO
+        s3_key = f"{model_name}/{state_dict_path}"
+        s3_client.upload_file(state_dict_path, bucket_name, s3_key)
+
+        print(
+            f"{state_dict_path} (PyTorch natif) uploadé dans le bucket {bucket_name} sous la clé {s3_key}"
+        )
+
+        # Nettoyer le fichier local après upload
+        Path(state_dict_path).unlink()
+
+    except Exception as e:
+        print(f"Erreur lors de l'upload de {model_name} : {e}")
+
+
 def find_best_models(experiment_id: str) -> Dict[str, Tuple[float, str]]:
     """
     Parcourt toutes les exécutions de l'expérience et sélectionne le meilleur modèle
@@ -137,8 +209,8 @@ if __name__ == "__main__":
 
     # Trouver et enregistrer les meilleurs modèles
     best_models = find_best_models(experiment_id)
-    register_best_models(best_models)
+    # register_best_models(best_models)
 
     # Uploader les meilleurs modèles vers MinIO
     for model_name in best_models.keys():
-        upload_model_to_minio(model_name, best_models)
+        upload_model_to_minio2(model_name, best_models)
