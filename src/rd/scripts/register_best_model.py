@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Dict, Tuple
 import torch
+import hashlib
+import io
 
 # Initialisation des clients MLflow et S3/MinIO
 mlflow_client = MlflowClient(tracking_uri="http://r_and_d:8002")
@@ -76,11 +78,41 @@ def upload_model_to_minio(
         print(f"Erreur lors de l'upload de {model_name} : {e}")
 
 
+def are_models_identical(model_path_1: str, model_path_2: str) -> bool:
+    """
+    Compare les poids de deux modèles PyTorch pour vérifier s'ils sont identiques.
+
+    Parameters:
+        model_path_1 (str): Chemin vers le premier modèle (state_dict).
+        model_path_2 (str): Chemin vers le second modèle (state_dict).
+
+    Returns:
+        bool: True si les deux modèles sont identiques, False sinon.
+    """
+    # Charger les deux modèles
+    state_dict_1 = torch.load(
+        model_path_1, weights_only=False, map_location="cpu"
+    ).state_dict()
+    state_dict_2 = torch.load(model_path_2, weights_only=False, map_location="cpu")
+
+    # Si les clés des deux state_dict sont différentes, ils ne sont pas identiques
+    if state_dict_1.keys() != state_dict_2.keys():
+        return False
+
+    # Comparer les poids de chaque couche
+    for key in state_dict_1.keys():
+        if not torch.equal(state_dict_1[key], state_dict_2[key]):
+            return False  # Une différence détectée
+
+    return True  # Tous les poids sont identiques
+
+
 def upload_model_to_minio2(
     model_name: str, best_models: Dict[str, Tuple[float, str]]
 ) -> None:
     """
     Télécharge le meilleur modèle depuis MLflow, le convertit en format PyTorch natif (state_dict),
+    vérifie si le modèle a déjà été uploadé en comparant directement les poids,
     et upload les fichiers dans le bucket MinIO avec versionnement incrémental.
 
     Parameters:
@@ -98,46 +130,65 @@ def upload_model_to_minio2(
 
         # Téléchargement du modèle depuis MLflow
         model_path = mlflow_client.download_artifacts(run_id, model_name)
-        print(model_path)
-        print(os.listdir(model_path))
-
-        model_path = Path(
-            f"{model_path}/generator/data/model.pth"
-        )  # Chemin typique des artefacts MLflow
+        model_path = Path(f"{model_path}/generator/data/model.pth")
 
         if not model_path.exists():
             raise FileNotFoundError(f"Fichier {model_path} introuvable.")
 
-        pytorch_model = torch.load(model_path, map_location="cpu")
+        # Charger uniquement le state_dict du modèle actuel
+        pytorch_model = torch.load(model_path, weights_only=False, map_location="cpu")
 
+        state_dict = (
+            pytorch_model.state_dict()
+            if hasattr(pytorch_model, "state_dict")
+            else pytorch_model
+        )
+
+        # Comparer le modèle actuel avec ceux déjà présents dans MinIO
         response = s3_client.list_objects_v2(
             Bucket=bucket_name, Prefix=f"{model_name}/"
         )
 
-        # Extraire les indices des fichiers existants
-        existing_versions = []
         if "Contents" in response:
             for obj in response["Contents"]:
                 key = obj["Key"]
-                # Extraire l'indice du fichier (ex: my_model_v3.pth -> 3)
                 if key.endswith(".pth"):
-                    parts = key.split("_v")
-                    if len(parts) > 1 and parts[-1].replace(".pth", "").isdigit():
-                        existing_versions.append(int(parts[-1].replace(".pth", "")))
+                    # Télécharger chaque modèle pour comparer
+                    temp_file = f"/tmp/{key.replace('/', '_')}"
+                    s3_client.download_file(bucket_name, key, temp_file)
+
+                    # Vérifier si les modèles sont identiques
+                    if are_models_identical(model_path, temp_file):
+                        print(
+                            f"Le modèle {model_name} est déjà présent dans le bucket. Upload ignoré."
+                        )
+                        Path(temp_file).unlink()
+                        return
+
+                    Path(temp_file).unlink()
 
         # Trouver le prochain index
+        existing_versions = []
+        for obj in response.get("Contents", []):
+            key = obj["Key"]
+            # Extraire l'indice du fichier (ex: my_model_v3.pth -> 3)
+            if key.endswith(".pth"):
+                parts = key.split("_v")
+                if len(parts) > 1 and parts[-1].replace(".pth", "").isdigit():
+                    existing_versions.append(int(parts[-1].replace(".pth", "")))
+
         next_version = max(existing_versions) + 1 if existing_versions else 1
 
         # Sauvegarder le modèle avec l'index incrémenté
         state_dict_path = f"{model_name}_v{next_version}.pth"
-        torch.save(pytorch_model, state_dict_path)
+        torch.save(state_dict, state_dict_path)
 
         # Upload vers MinIO
         s3_key = f"{model_name}/{state_dict_path}"
         s3_client.upload_file(state_dict_path, bucket_name, s3_key)
 
         print(
-            f"{state_dict_path} (PyTorch natif) uploadé dans le bucket {bucket_name} sous la clé {s3_key}"
+            f"{state_dict_path} (PyTorch state_dict) uploadé dans le bucket {bucket_name} sous la clé {s3_key}"
         )
 
         # Nettoyer le fichier local après upload
