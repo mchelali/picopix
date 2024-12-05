@@ -17,6 +17,7 @@ import time
 import numpy as np
 from dotenv import load_dotenv
 import logging
+from contextlib import asynccontextmanager
 from pixlibs.database import engine
 import pixlibs.storage_boto3
 import pixlibs.auth
@@ -44,7 +45,10 @@ def format_logger(user: int, error: str, message: str):
         return f"User: {user}\tError:{error}\tMessage: {message}" 
 
 # Etablish db connexion
-pixlibs.models.Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    pixlibs.models.Base.metadata.create_all(bind=engine)
+    yield
 
 # Declare API
 app = FastAPI(
@@ -54,10 +58,6 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Declare Endpoints
-# Authentication endpoints
-app.include_router(pixlibs.auth.router)
-
 # PostgreSQL Database session function
 def get_db():
     db = pixlibs.database.SessionLocal()
@@ -66,13 +66,14 @@ def get_db():
     finally:
         db.close()
 
+# Declare Endpoints
+# Authentication endpoints
+app.include_router(pixlibs.auth.router)
+
 # endpoints dependency
-# database access is ok
-db_dependency = Annotated[Session, Depends(get_db)]
-# user authentication is ok
-user_dependency = Annotated[dict, Depends(get_current_user)]
-# storage access is ok
-storage_dependency = Annotated[storageclient, Depends(get_storage)]
+db_dependency = Annotated[Session, Depends(get_db)] # database access is ok
+user_dependency = Annotated[dict, Depends(get_current_user)] # user authentication is ok
+storage_dependency = Annotated[storageclient, Depends(get_storage)] # storage access is ok
 
 # DB default user creation function
 bcrypt_context = CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -90,6 +91,7 @@ def create_default_user():
     try:
         db.add(create_user_model)
         db.commit()
+        db.close()
     except Exception as e:
         logger.error(format_logger("api","Default user creation failed.",repr(e)), exc_info=True)
 
@@ -106,7 +108,7 @@ def root():
 
     Returns
     -------
-    string
+    string : json message with "Welcome to ColorPix !"
     """
     # log
     logger.info(f"request / endpoint!") 
@@ -393,3 +395,88 @@ async def download_colorized_image(user: user_dependency, db: db_dependency, s3c
 
     # return image
     return FileResponse(f"cache{tempcolorfilename.name}.jpg", media_type="image/jpeg", filename=lastimageobj.filename,background=bg_tasks)     
+
+# delete user
+@app.post('/delete_user')
+async def delete_user(user: user_dependency, username: str,db: db_dependency, s3client: storage_dependency):
+    """
+    Description
+    -----------
+    endpoint to delete user (himself or with admin account)
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    string : json message with "User + Data deleted succesfully !"
+    """
+
+    # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /delete_user!"))
+
+    # check if username = user authentified or if user is admin , get user id
+    if user["username"]!=username:
+        operator_user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+        if not operator_user.isadmin:
+            logger.exception('You are not authorized to delete user.')
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to delete user.')
+        else:
+            try:
+                userid = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first().id
+            except Exception as e:
+                logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
+                raise HTTPException(status_code=500, detail='Unable to find user {username} in database.')     
+    else:
+        userid = user["id"]
+
+    # delete users's bw images
+    try:
+        bw_images = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.user_id == userid)
+        if bw_images.count()>0:
+            for image in bw_images:
+                try:
+                    s3client.Bucket(AWS_BUCKET_MEDIA,).delete_key(image.name)
+                except Exception as e:
+                    logger.error(format_logger(user["id"],f"failed to delete {image.name} on bucket.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail='File delete error on bucket.')
+                print(image.filename)
+            db.delete(bw_images)
+            db.commit()
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to read bw_images on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database read error.')        
+    
+    # delete users's color images
+    try:
+        color_images = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.user_id == userid)
+        if color_images.count()>0:
+            for image in color_images:
+                try:
+                    s3client.Bucket(AWS_BUCKET_MEDIA,).delete_key(image.name)
+                except Exception as e:
+                    logger.error(format_logger(user["id"],f"failed to delete {image.name} on bucket.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail='File delete error on bucket.')
+            db.delete(color_images)
+            db.commit()
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to read color_images on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database read error.')     
+
+    # delete user
+    try:
+        usertodelete = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == userid).first()
+        db.delete(usertodelete)
+        db.commit()
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to delete user({username}) on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database delete error.')    
+
+    # return
+    return {'message': f"User({username}) + Data deleted succesfully !"}
