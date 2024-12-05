@@ -30,6 +30,7 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     ports:
       - "8002:8002"
+      - "2222:22"
     volumes:
       - ./src/rd:/r_and_d
       - ./dataset/:/r_and_d/dataset
