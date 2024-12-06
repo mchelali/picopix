@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import desc,asc
+from sqlalchemy import desc,asc,and_
 from typing import Annotated
 from starlette.background import BackgroundTasks
 import tempfile
@@ -344,9 +344,48 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
     # return image
     return {"url": f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/bw_images/{s3colorfilename}"}
 
-# download colorized image
-@app.get('/download_colorized_image')
-async def download_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, bg_tasks: BackgroundTasks):
+# get colorized images list
+@app.get('/get_colorized_images_list')
+async def get_colorized_images_list(user: user_dependency, db: db_dependency, s3client: storage_dependency):
+    """
+    Description
+    -----------
+    endpoint to get list of user's colorized images 
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    string: list of images (json)
+    """
+
+    # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /get_colorized_images_list endpoint!"))
+
+    #contruct dict of dictionnaries
+    try:
+        color_images = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.user_id == user["id"]).all()
+        images_list = dict()
+        imageitem = dict()
+        for image in color_images:
+            bw_image = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.id == image.bwimage_id).first()
+            imageitem = {"bw_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/bw_images/{bw_image.filename}","colorized_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/color_images/{image.filename}"}
+            images_list[image.id]=imageitem
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to read color images on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database read error.')   
+    return images_list
+
+# download last colorized image
+@app.get('/download_last_colorized_image')
+async def download_last_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, bg_tasks: BackgroundTasks):
     """
     Description
     -----------
@@ -369,9 +408,9 @@ async def download_colorized_image(user: user_dependency, db: db_dependency, s3c
     # log
     logger.info(format_logger(user["id"],"","Request /download_colorized_image endpoint!"))
     
-    # check last uploaded file (or none)
+    # check last created color image
     try:
-        lastimageobj = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.user_id == user["id"]).order_by(pixlibs.models.COLOR_Images.filename.desc()).first() is not None
+        lastimageobj = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.user_id == user["id"]).order_by(pixlibs.models.COLOR_Images.filename.desc()).first()
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read last color image added on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Database read error.')  
@@ -395,6 +434,58 @@ async def download_colorized_image(user: user_dependency, db: db_dependency, s3c
 
     # return image
     return FileResponse(f"cache{tempcolorfilename.name}.jpg", media_type="image/jpeg", filename=lastimageobj.filename,background=bg_tasks)     
+
+# download colorized image with id
+@app.get('/download_colorized_image/{id}')
+async def download_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, id: int,bg_tasks: BackgroundTasks):
+    """
+    Description
+    -----------
+    endpoint to download last colorized image
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+     file: colorized image (jpeg)
+    """
+
+   # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /download_colorized_image endpoint!"))
+    
+    # check color image by id
+    try:
+        imageobj = db.query(pixlibs.models.COLOR_Images).filter(and_(pixlibs.models.COLOR_Images.user_id == user["id"],pixlibs.models.COLOR_Images.id == id)).first()
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to read color image {id} added on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database read error.')  
+    
+     # copy color image from bucket to server
+    tempcolorfilename = tempfile.NamedTemporaryFile()
+    try:
+        s3client.Bucket(AWS_BUCKET_MEDIA,).download_file(imageobj.filename,f"cache{tempcolorfilename.name}.jpg")
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to download last color image added on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='File write error on server (s3->server).')
+    
+    # delete temporary files
+    try:
+        if os.path.exists(f"cache{tempcolorfilename.name}.jpg"):
+            # if file writed then add background task to delete temporary file after FileResponse return
+            bg_tasks.add_task(os.remove, f"cache{tempcolorfilename.name}.jpg")
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to delete temporary file cache{tempcolorfilename.name}.jpg on server.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Delete file error on server.')     
+
+    # return image
+    return FileResponse(f"cache{tempcolorfilename.name}.jpg", media_type="image/jpeg", filename=imageobj.filename,background=bg_tasks)     
 
 # delete user
 @app.post('/delete_user')
