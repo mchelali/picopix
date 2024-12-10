@@ -128,3 +128,6 @@ MLflow : Pour le suivi des expériences et le monitoring des modèles
 CI/CD : Pipeline d'intégration et de déploiement continu
 Monitoring : Outils de surveillance des performances et de la disponibilité du système
 
+<div align="center">
+  <img src="assets/picopix.png" alt="Description de l'image" style="width:100%;">
+</div>

@@ -28,7 +28,11 @@ Colorisation d'images est un probleme auquel est confrenté  la caumunauté de v
 
 ```
 
+## Worflow
 
+<div align="center">
+  <img src="references/assets/picopix.png" alt="Description de l'image" style="width:100%;">
+</div>
 
 
 ## Utilisation
