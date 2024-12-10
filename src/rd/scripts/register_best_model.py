@@ -8,14 +8,17 @@ from typing import Dict, Tuple
 import torch
 import hashlib
 import io
+import dotenv
+
+dotenv.load_dotenv()
 
 # Initialisation des clients MLflow et S3/MinIO
 mlflow_client = MlflowClient(tracking_uri="http://r_and_d:8002")
 s3_client = boto3.client(
     "s3",
-    endpoint_url=os.getenv("MLFLOW_S3_ENDPOINT_URL"),
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    endpoint_url=os.environ.get("AWS_ENDPOINT_URL"),
+    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     config=Config(signature_version="s3v4"),
 )
 
