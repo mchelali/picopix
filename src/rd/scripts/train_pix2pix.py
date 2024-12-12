@@ -311,7 +311,7 @@ if __name__ == "__main__":
                     epoch_valid_loss += criterion_GAN(fake_B, real_B).item()
 
                 epoch_valid_loss = epoch_valid_loss / len(val_dataloader)
-            mlflow.log_metric("val_loss_G", epoch_valid_loss)
+            mlflow.log_metric("val_loss_G", epoch_valid_loss, step=epoch)
         
             if epoch_valid_loss > vald_loss:
                 print(f"---> Early stopping criterion {patience}/{args.early_stop}")
@@ -337,7 +337,7 @@ if __name__ == "__main__":
                     artifact_path=f"{artifact_path}/discriminator",
                 )
 
-            if patience > args.early_stop or epoch == args.epochs - 1:
+            if patience > args.early_stop or epoch == args.n_epochs - 1:
                 break
 
         state_dict = torch.load("models/generator.pth", map_location="cpu")

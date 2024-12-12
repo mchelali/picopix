@@ -22,24 +22,30 @@ services:
       shm_size: "2gb" # <-- used during the build
       args:
         version: '0.0.1'
-    shm_size: "12gb" #<-- used during the run
+    shm_size: "12gb" # <-- used during the run
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_REGION_NAME}
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     ports:
       - "8002:8002"
       - "2222:22"
     volumes:
       - ./src/rd:/r_and_d
       - ./dataset/:/r_and_d/dataset
-      - ./models/:/r_and_d/models
+      - ./src/models/:/r_and_d/models
       # - .env:/r_and_d/.env
     depends_on:
       - minio
     networks:
       - localhost
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # ou "all" pour tous les GPU
+              capabilities: [ gpu ]
 
   webapp:
     build:
