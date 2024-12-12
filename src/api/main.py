@@ -124,6 +124,42 @@ async def favicon():
     file_path = os.path.join(app.root_path, "static", file_name)
     return FileResponse(path=file_path, headers={"Content-Disposition": "attachment; filename=" + file_name})
 
+# upload test
+@app.post('/upload_file')
+async def upload_file(user: user_dependency,file: UploadFile = File(...)):
+
+# check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+
+# upload file to localhost
+    if not file:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='No file found.')
+    if file.content_type != "image/jpeg":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad file format (jpeg only).')
+    tempfilename = tempfile.NamedTemporaryFile()
+    try:
+        contents = file.file.read()
+        with open(f"cache{tempfilename.name}.jpg", 'wb') as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=501, detail='Upload to server error.')
+    finally:
+        file.file.close()
+    
+    # check if picture is greyscale & well sized
+    if not is_valid_image(f"cache{tempfilename.name}.jpg"):
+        if os.path.exists(f"cache{tempfilename.name}.jpg"):
+            #if not ok then delete temporary file
+            print("remove image")
+            #os.remove(f"cache{tempfilename.name}")
+        logger.error(format_logger(user["id"],"",f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max)."))
+        raise HTTPException(status_code=500,detail=f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max).")       
+
+    # return      
+    return {"message": "File uploaded successfully"}
+    
 # black & white image upload
 @app.post('/upload_bw_image')
 async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, file: UploadFile = File(...)):
@@ -161,19 +197,23 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: st
     tempfilename = tempfile.NamedTemporaryFile()
     try:
         contents = file.file.read()
-        with open(f"cache{tempfilename.name}", 'wb') as f:
+        with open(f"cache{tempfilename.name}.jpg", 'wb') as f:
             f.write(contents)
     except Exception as e:
-        logger.error(format_logger(user["id"],f"failed to save file {tempfilename.name} on server.",repr(e)), exc_info=True)
+        logger.error(format_logger(user["id"],f"failed to save file {tempfilename.name}.jpg on server.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Upload to server error.')
     finally:
         file.file.close()
 
     # check if picture is greyscale & well sized
-    if not is_valid_image(f"cache{tempfilename.name}"):
-        if os.path.exists(f"cache{tempfilename.name}"):
-            # if not ok then delete temporary file
-            os.remove(f"cache{tempfilename.name}")
+    if not is_valid_image(f"cache{tempfilename.name}.jpg"):
+        try:
+            if os.path.exists(f"cache{tempfilename.name}.jpg"):
+                # if not ok then delete temporary file
+                os.remove(f"cache{tempfilename.name}.jpg")
+        except Exception as e:
+            logger.error(format_logger(user["id"],f"failed to delete temporary file {tempfilename.name}.jpg on server.",repr(e)), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to delete temporary  {tempfilename.name}.jpg on server.")
         logger.error(format_logger(user["id"],"",f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max)."))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max).")       
     
@@ -183,12 +223,12 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: st
     # write file to bucket
     try:
         #s3client.fput_object(AWS_BUCKET_MEDIA,s3filename,f"cache{tempfilename.name}","image/jpg")
-        s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempfilename.name}",f"bw_images/{s3filename}")
+        s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempfilename.name}.jpg",f"bw_images/{s3filename}")
         if os.path.exists(f"cache{tempfilename.name}"):
             # if file writed then delete temporary file
             os.remove(f"cache{tempfilename.name}")
     except Exception as e:
-        logger.error(format_logger(user["id"],f"failed to save file {tempfilename.name} on Bucket.",repr(e)), exc_info=True)
+        logger.error(format_logger(user["id"],f"failed to save file {tempfilename.name}.jpg on Bucket.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Upload to bucket error.')   
 
     # add bw image ref to database
@@ -223,9 +263,11 @@ def is_valid_image(imgfilename: str):
     """
 
     try:
-    # check file size
+        # check file size
         if (os.path.getsize(imgfilename)/1024)>int(IMG_SIZE_KB_MAX):
+            print("Bad image size in kb")
             return False
+
         # open image
         img=cv2.imread(imgfilename)
         # split channels
@@ -236,16 +278,20 @@ def is_valid_image(imgfilename: str):
         g_b=np.count_nonzero(abs(g-b))
         diff_sum=float(r_g+r_b+g_b)
         ratio=diff_sum/img.size
-        if ratio>0.005:
+        if ratio>0.005:  
+            print("not bw image")         
             return False
         # check height and width
         h,w,c = img.shape
         if (w<int(IMG_SIZE_W_MIN) or h<int(IMG_SIZE_H_MIN)):
+            print("bad min size image")  
             return False
         if (w>int(IMG_SIZE_W_MAX) or h>int(IMG_SIZE_H_MAX)):  
+            print("bad max size image")   
             return False
-    except Exception:
-        return False
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to check image validity imgfilename on Server.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='File read error.')  
     
     # return
     return True
@@ -277,7 +323,7 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
     
     # check last uploaded file (or none)
     try:
-        lastimageobj = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.user_id == user["id"]).order_by(pixlibs.models.BW_Images.filename.desc()).first() is not None
+        lastimageobj = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.user_id == user["id"]).order_by(pixlibs.models.BW_Images.filename.desc()).first()
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read last image uploaded on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Database read error.')        
@@ -523,7 +569,7 @@ async def delete_user(user: user_dependency, username: str,db: db_dependency, s3
                 userid = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first().id
             except Exception as e:
                 logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
-                raise HTTPException(status_code=500, detail='Unable to find user {username} in database.')     
+                raise HTTPException(status_code=500, detail=f"Unable to find user {username} in database.")     
     else:
         userid = user["id"]
 
@@ -531,34 +577,43 @@ async def delete_user(user: user_dependency, username: str,db: db_dependency, s3
     try:
         bw_images = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.user_id == userid)
         if bw_images.count()>0:
-            for image in bw_images:
+            for image in bw_images.all():
                 try:
-                    s3client.Bucket(AWS_BUCKET_MEDIA,).delete_key(image.name)
+                    s3client.Object(AWS_BUCKET_MEDIA,image.filename).delete()
                 except Exception as e:
-                    logger.error(format_logger(user["id"],f"failed to delete {image.name} on bucket.",repr(e)), exc_info=True)
-                    raise HTTPException(status_code=500, detail='File delete error on bucket.')
-                print(image.filename)
-            db.delete(bw_images)
-            db.commit()
+                    logger.error(format_logger(user["id"],f"failed to delete {image.filename} on bucket.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"File delete error : failed to delete {image.filename} on bucket.")
+                try:
+                    imagetodelete = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.id == image.id).first()
+                    db.delete(imagetodelete)
+                    db.commit()
+                except Exception as e:
+                    logger.error(format_logger(user["id"],f"failed to delete {image.filename} on database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"File delete error : failed to delete {image.filename} on database.")
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read bw_images on Database.",repr(e)), exc_info=True)
-        raise HTTPException(status_code=500, detail='Database read error.')        
+        raise HTTPException(status_code=500, detail="Database read error : failed to read bw_images on Database.")        
     
     # delete users's color images
     try:
         color_images = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.user_id == userid)
         if color_images.count()>0:
-            for image in color_images:
+            for image in color_images.all():
                 try:
-                    s3client.Bucket(AWS_BUCKET_MEDIA,).delete_key(image.name)
+                    s3client.Object(AWS_BUCKET_MEDIA,image.filename).delete()
                 except Exception as e:
-                    logger.error(format_logger(user["id"],f"failed to delete {image.name} on bucket.",repr(e)), exc_info=True)
-                    raise HTTPException(status_code=500, detail='File delete error on bucket.')
-            db.delete(color_images)
-            db.commit()
+                    logger.error(format_logger(user["id"],f"failed to delete {image.filename} on bucket.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"File delete error : failed to delete {image.filename} on bucket.")
+                try:
+                    imagetodelete = db.query(pixlibs.models.COLOR_Images).filter(pixlibs.models.COLOR_Images.id == image.id).first()
+                    db.delete(imagetodelete)
+                    db.commit()
+                except Exception as e:
+                    logger.error(format_logger(user["id"],f"failed to delete {image.filename} on database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"File delete error : failed to delete {image.filename} on database.")
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read color_images on Database.",repr(e)), exc_info=True)
-        raise HTTPException(status_code=500, detail='Database read error.')     
+        raise HTTPException(status_code=500, detail="Database read error : failed to read color_images on Database.")     
 
     # delete user
     try:
@@ -567,7 +622,7 @@ async def delete_user(user: user_dependency, username: str,db: db_dependency, s3
         db.commit()
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to delete user({username}) on Database.",repr(e)), exc_info=True)
-        raise HTTPException(status_code=500, detail='Database delete error.')    
+        raise HTTPException(status_code=500, detail=f"Database delete error : failed to delete user({username}) on Database.")    
 
     # return
     return {'message': f"User({username}) + Data deleted succesfully !"}
