@@ -205,7 +205,7 @@ poetry run python -m scripts.train_pix2pix --image_dir dataset/coco_dataset/ --n
 To register the model and upload the best ones to MinIO bucket 
 
 ```bash
-python -m scripts.register_best_model
+poetry run python -m scripts.register_best_model
 ```
 
 ## Export poetry env
