@@ -148,10 +148,6 @@ if __name__ == "__main__":
                 trainner.plot_losses("models")
 
             if patience > args.early_stop or epoch == args.epochs - 1:
-                # save only the best model
-                mlflow.pytorch.log_model(
-                    pytorch_model=model, artifact_path=f"{artifact_path}/generator"
-                )
                 break
 
         # torch.save(model, "models/auto_encoder_last_epoch.pth")

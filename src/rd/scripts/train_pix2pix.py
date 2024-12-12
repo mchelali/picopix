@@ -86,6 +86,12 @@ if __name__ == "__main__":
         default=-1,
         help="interval between model modelss",
     )
+    parser.add_argument(
+        "--early_stop",
+        type=int,
+        default=10,
+        help="Stop trainning if validation does not decrease at given times",
+    )
     args = parser.parse_args()
 
     dataset = os.path.dirname(args.image_dir).split(os.path.sep)[-1]
@@ -192,6 +198,8 @@ if __name__ == "__main__":
     # ----------
     #  Training
     # ----------
+    vald_loss = np.inf
+    patience = 0
 
     prev_time = time.time()
     with mlflow.start_run(run_name=run_name) as run:
@@ -286,26 +294,51 @@ if __name__ == "__main__":
                 if batches_done % args.sample_interval == 0:
                     sample_images(batches_done)
 
-        mlflow.log_metric("loss_G", avg_loss_G / len(dataloader), step=epoch)
-        mlflow.log_metric("loss_D", avg_loss_D / len(dataloader), step=epoch)
-        # if opt.models_interval != -1 and epoch % opt.models_interval == 0:
-        # Save model modelss
-        torch.save(
-            generator.state_dict(),
-            "models/generator.pth",
-        )
-        torch.save(
-            discriminator.state_dict(),
-            "models/discriminator.pth",
-        )
-        mlflow.pytorch.log_model(
-            pytorch_model=generator,
-            artifact_path=f"{artifact_path}/generator",
-        )
-        mlflow.pytorch.log_model(
-            pytorch_model=generator,
-            artifact_path=f"{artifact_path}/discriminator",
-        )
+            avg_loss_G = avg_loss_G / len(dataloader)
+            mlflow.log_metric("loss_G", avg_loss_G, step=epoch)
+            mlflow.log_metric("loss_D", avg_loss_D / len(dataloader), step=epoch)
+
+            # --------------
+            #  Validation Progress (Generator Only)
+            # --------------
+
+            with torch.no_grad():
+                epoch_valid_loss = 0
+                for i, (A, B) in enumerate(val_dataloader):
+                    real_A = Variable(A.type(Tensor))
+                    real_B = Variable(B.type(Tensor))
+                    fake_B = generator(real_A)
+                    epoch_valid_loss += criterion_GAN(fake_B, real_B).item()
+
+                epoch_valid_loss = epoch_valid_loss / len(val_dataloader)
+            mlflow.log_metric("val_loss_G", epoch_valid_loss)
+        
+            if epoch_valid_loss > vald_loss:
+                print(f"---> Early stopping criterion {patience}/{args.early_stop}")
+                patience += 1
+            else:
+                patience = 0
+                vald_loss = epoch_valid_loss
+                # Save model modelss
+                torch.save(
+                    generator.state_dict(),
+                    "models/generator.pth",
+                )
+                torch.save(
+                    discriminator.state_dict(),
+                    "models/discriminator.pth",
+                )
+                mlflow.pytorch.log_model(
+                    pytorch_model=generator,
+                    artifact_path=f"{artifact_path}/generator",
+                )
+                mlflow.pytorch.log_model(
+                    pytorch_model=generator,
+                    artifact_path=f"{artifact_path}/discriminator",
+                )
+
+            if patience > args.early_stop or epoch == args.epochs - 1:
+                break
 
         state_dict = torch.load("models/generator.pth", map_location="cpu")
         generator.load_state_dict(state_dict)
