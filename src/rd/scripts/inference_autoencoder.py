@@ -41,13 +41,11 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Beginning Inference")
-    model = torch.load(args.model_path, weights_only=False).to(device)
-    # model = Net()
-    # state_dict = torch.load(
-    #     args.model_path, map_location="cpu"
-    # )  # Load the state dictionary
-    # model.load_state_dict(state_dict)
-    # model.to(device)
+    # model = torch.load(args.model_path, weights_only=False).to(device)
+    model = Net()
+    state_dict = torch.load(args.model_path, map_location="cpu")
+    model.load_state_dict(state_dict)
+    model.to(device)
     input_gray = cv2.imread(args.image_path)
     w, h = input_gray.shape[0:2]
     input_gray = cv2.resize(input_gray, (256, 256))
@@ -63,5 +61,5 @@ if __name__ == "__main__":
     )
     colored_image = cv2.resize(colored_image, (h, w))
     colored_image = (colored_image * 255).astype(np.uint8)
-    plt.imsave(arr=colored_image, fname="checkpoint/inference_output.jpg")
-    print("Colorized image saved at 'inference/inference_output.jpg'")
+    plt.imsave(arr=colored_image, fname="models/autoencoder_output.jpg")
+    print("Colorized image saved at 'models/autoencoder_output.jpg'")

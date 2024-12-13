@@ -17,7 +17,7 @@ COCO_URLS = {
 }
 
 # Directories for downloading and organizing dataset
-BASE_DIR = "./dataset/coco_dataset"
+BASE_DIR = "./coco_dataset"
 TRAIN_DIR = os.path.join(BASE_DIR, "train")
 VAL_DIR = os.path.join(BASE_DIR, "val")
 TEST_DIR = os.path.join(BASE_DIR, "test")
@@ -46,7 +46,7 @@ def download(url):
     return zip_path
 
 
-def split_train_vald(zip_path, train_dir, val_dir, img_ids_filter):
+def split_train_vald(zip_path, train_dir, val_dir, percentage=0.1):
     with zipfile.ZipFile(zip_path, "r") as zip_file:
         # Get a list of all image files in the ZIP archive
         # Filter files by natural image IDs and get image files
@@ -61,7 +61,7 @@ def split_train_vald(zip_path, train_dir, val_dir, img_ids_filter):
         random.shuffle(file_list)
 
         # Calculate split index (e.g., 80% train, 20% validation)
-        split_index = int(0.01 * len(file_list))
+        split_index = int(percentage * len(file_list))
         train_files = file_list[:split_index]
         val_files = file_list[split_index : split_index + split_index]
 
@@ -119,7 +119,7 @@ natural_img_ids = set(coco.getImgIds(catIds=cat_ids))
 
 print("Moving files to train, val, and test directories...")
 train_folder, val_folder = split_train_vald(
-    train_zip, TRAIN_DIR, VAL_DIR, natural_img_ids
+    train_zip, TRAIN_DIR, VAL_DIR, percentage=0.4
 )
 
 print("Data split completed.")

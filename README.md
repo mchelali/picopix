@@ -1,39 +1,50 @@
-# picopix
+# Picopix
 
+Colorisation d'images est un probleme auquel est confrenté  la caumunauté de vision par ordinateur. Ce projet implémente 2 méthodes de l'état de l'art pour la résolution de cette problématiques avec un structure MLOps complète pour la gestion et maintenance de l'application et l'amélioration des modèles utilisés. 
+
+
+## Structure du projet
 
 ```bash
 .
-├── Makefile
-├── README.md
+├── Makefile                    <--- racourcie des commandes docker pour le lancemant des conteneur
+├── README.md                   <--- Présentation du peojet
 ├── dataset
-│   ├── README.md
-│   ├── dataset_preparation.sh
-│   ├── test.pkl
-│   └── val2017.zip
-├── docker
-│   ├── Dockerfile.api
-│   ├── Dockerfile.rd
-│   └── Dockerfile.webapp
-├── docker-compose.dev.yaml
-├── docker-compose.yaml
-├── models
-├── notebooks
-├── references
-└── src
-    ├── api
+│   ├── README.md               <--- Présentation de la basse de données initiale
+│   ├── dataset_preparation.sh  <--- Script de préparation de la base de donnée initiale 
+├── docker                      <--- Dossier des fichier de configuration Docker
+│   └── ....
+├── docker-compose.dev.yaml     <--- Composition des dockers de dévellopement
+├── docker-compose.yaml         <--- Composition des dockers de production
+├── notebooks                   <--- dossier des notebooks de test et d'exploitation
+├── references                  <--- dossier de documentation
+└── src                 
+    ├── api                     <--- API
     │   ├── README.md
-    │   ├── poetry.lock
-    │   ├── poetry.toml
-    │   └── pyproject.toml
-    ├── rd
+    ├── rd                      <--- partie r&d du projet
     │   ├── README.md
-    │   ├── poetry.lock
-    │   ├── poetry.toml
-    │   └── pyproject.toml
-    └── webapp
+    └── webapp                  <--- application web via Streamlit
     │   ├── README.md
-    │   ├── poetry.lock
-    │   ├── poetry.toml
-    │   └── pyproject.toml
 
+```
+
+## Worflow
+
+<div align="center">
+  <img src="references/assets/picopix.png" alt="Description de l'image" style="width:100%;">
+</div>
+
+
+## Utilisation
+Pour lancer tous les conteneur en loacal, il vous suffit de clounner le répertoire et lancer les conteneurs. les commandes suivantes illustre ceci :
+
+```bash
+git clone git@github.com:mchelali/picopix.git
+cd picopix/ 
+make start
+```
+
+Pour stoper les conteneurs
+```bash
+make stop
 ```

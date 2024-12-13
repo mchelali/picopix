@@ -185,3 +185,32 @@ Given LAB values:
    - Scale $ R $, $ G $, and $ B $ from $[0, 1]$ to $[0, 255]$ by multiplying by 255.
 
 This completes the transformation from LAB to RGB. Note that you may need to clamp the RGB values to the range $[0, 255]$ at the end to ensure valid color values.
+
+
+# Usage
+
+to train autoencoder, please run the following command
+
+```bash
+poetry run python -m scripts.train_autoencoder --image_dir dataset/coco_dataset/ --epochs 2 --batch_size 4
+```
+
+
+TO train pix2pix model, please run the following command
+
+```bash
+poetry run python -m scripts.train_pix2pix --image_dir dataset/coco_dataset/ --n_epochs 2 --batch_size 4
+```
+
+To register the model and upload the best ones to MinIO bucket 
+
+```bash
+poetry run python -m scripts.register_best_model
+```
+
+## Export poetry env
+
+
+```bash
+poetry export --without-hashes --format=requirements.txt > requirements.txt 
+```
