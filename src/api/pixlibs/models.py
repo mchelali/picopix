@@ -35,6 +35,13 @@ class COLOR_Images(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer,index=True)    
-    bwimage_id = Column(Integer,index=True) 
+    bwimage_id = Column(Integer,index=True)
+    model_id = Column(Integer,index=True)
     filename = Column(String(64), unique=True)
     creation_date = Column(DateTime(timezone=True), server_default=func.now())
+    rating = Column(Integer,index=True, default=None)
+
+class MODELS(Base):
+    __tablename__= "models"
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(64), unique=True)

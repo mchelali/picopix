@@ -31,19 +31,21 @@ services:
   #  networks:
   #    - localhost
 
-  #webapp:
-  #  build:
-  #    context: .
-  #    dockerfile: docker/Dockerfile.webapp
-  #    args:
-  #      version: '0.0.1'
-  #  ports:
-  #    - "80:80"
-  #  volumes:
-  #    - ./src/webapp:/webapp
-  #    - .env:/webapp/.env
-  #  networks:
-  #    - localhost
+  webapp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.webapp
+      args:
+        version: '0.0.1'
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src/webapp:/webapp
+      - .env:/webapp/.env
+    networks:
+      - localhost
+    depends_on:
+      - api
   
   minio:
      image: minio/minio

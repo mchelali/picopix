@@ -3,12 +3,14 @@
 # API
 
 # Declare libraries
-from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Path
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import desc,asc,and_
 from typing import Annotated
+#import torch
+#import torchvision.models as models
 from starlette.background import BackgroundTasks
 import tempfile
 import os
@@ -21,6 +23,7 @@ from contextlib import asynccontextmanager
 from pixlibs.database import engine
 import pixlibs.storage_boto3
 import pixlibs.auth
+from pixlibs.schemas_api import Imagerating
 from passlib.context import CryptContext
 from pixlibs.auth import get_current_user
 from pixlibs.storage_boto3 import get_storage, storageclient
@@ -34,6 +37,10 @@ IMG_SIZE_W_MAX = os.getenv("IMG_SIZE_W_MAX")
 IMG_SIZE_KB_MAX = os.getenv("IMG_SIZE_KB_MAX")
 AWS_BUCKET_MEDIA = os.getenv("AWS_BUCKET_MEDIA")
 AWS_ENDPOINT_URL = os.getenv("AWS_ENDPOINT_URL")
+PICOPIX_ADM = os.getenv("PICOPIX_ADM")
+PICOPIX_ADM_FIRSTNAME = os.getenv("PICOPIX_ADM_FIRSTNAME")
+PICOPIX_ADM_LASTNAME = os.getenv("PICOPIX_ADM_LASTNAME")
+PICOPIX_ADM_PWD = os.getenv("PICOPIX_ADM_PWD")
 
 # Enable logging
 logger = logging.getLogger(__name__)
@@ -47,14 +54,17 @@ def format_logger(user: int, error: str, message: str):
 # Etablish db connexion
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    # create database structure
     pixlibs.models.Base.metadata.create_all(bind=engine)
+    create_default_user()
     yield
 
 # Declare API
 app = FastAPI(
     title="ColorPix",
     description="DST MLops Image Colorization Project",
-    version="0.1"
+    version="0.1",
+    lifespan=lifespan
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -82,21 +92,21 @@ def create_default_user():
     #result = db.query(pixlibs.models.Users).filter_by(pixlibs.models.Users.username == "default")
     # declare new object "Users"
     create_user_model = pixlibs.models.Users(
-        username="default",
-        firstname="Default",
-        lastname="USER",
-        hashed_password=bcrypt_context.hash("default"),
+        username=PICOPIX_ADM,
+        firstname=PICOPIX_ADM_FIRSTNAME,
+        lastname=PICOPIX_ADM_LASTNAME,
+        isadmin=True,
+        hashed_password=bcrypt_context.hash(PICOPIX_ADM_PWD),
         )
     # SQL ADD request
     try:
-        db.add(create_user_model)
-        db.commit()
-        db.close()
+        defaultuser = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == "default").first() or None
+        if defaultuser is None:
+            db.add(create_user_model)
+            db.commit()
+            db.close()
     except Exception as e:
         logger.error(format_logger("api","Default user creation failed.",repr(e)), exc_info=True)
-
-# Init default user
-create_default_user()
 
 # root endpoint
 @app.get('/')
@@ -124,42 +134,6 @@ async def favicon():
     file_path = os.path.join(app.root_path, "static", file_name)
     return FileResponse(path=file_path, headers={"Content-Disposition": "attachment; filename=" + file_name})
 
-# upload test
-@app.post('/upload_file')
-async def upload_file(user: user_dependency,file: UploadFile = File(...)):
-
-# check authentication 
-    if user is None:
-        logger.exception('Authentication Failed')
-        raise HTTPException(status_code=401, detail='Authentication Failed')
-
-# upload file to localhost
-    if not file:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='No file found.')
-    if file.content_type != "image/jpeg":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad file format (jpeg only).')
-    tempfilename = tempfile.NamedTemporaryFile()
-    try:
-        contents = file.file.read()
-        with open(f"cache{tempfilename.name}.jpg", 'wb') as f:
-            f.write(contents)
-    except Exception as e:
-        raise HTTPException(status_code=501, detail='Upload to server error.')
-    finally:
-        file.file.close()
-    
-    # check if picture is greyscale & well sized
-    if not is_valid_image(f"cache{tempfilename.name}.jpg"):
-        if os.path.exists(f"cache{tempfilename.name}.jpg"):
-            #if not ok then delete temporary file
-            print("remove image")
-            #os.remove(f"cache{tempfilename.name}")
-        logger.error(format_logger(user["id"],"",f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max)."))
-        raise HTTPException(status_code=500,detail=f"Bad file format (only b&w image, {IMG_SIZE_W_MIN}x{IMG_SIZE_H_MIN} min,{IMG_SIZE_W_MAX}x{IMG_SIZE_H_MAX} max).")       
-
-    # return      
-    return {"message": "File uploaded successfully"}
-    
 # black & white image upload
 @app.post('/upload_bw_image')
 async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, file: UploadFile = File(...)):
@@ -206,7 +180,7 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: st
         file.file.close()
 
     # check if picture is greyscale & well sized
-    if not is_valid_image(f"cache{tempfilename.name}.jpg"):
+    if not is_valid_image(f"cache{tempfilename.name}.jpg",user["id"]):
         try:
             if os.path.exists(f"cache{tempfilename.name}.jpg"):
                 # if not ok then delete temporary file
@@ -247,7 +221,7 @@ async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: st
     return {"url": f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/bw_images/{s3filename}"}
 
 # Image validity function
-def is_valid_image(imgfilename: str):
+def is_valid_image(imgfilename: str,userid: int):
     """
     Description
     -----------
@@ -290,7 +264,7 @@ def is_valid_image(imgfilename: str):
             print("bad max size image")   
             return False
     except Exception as e:
-        logger.error(format_logger(user["id"],f"failed to check image validity imgfilename on Server.",repr(e)), exc_info=True)
+        logger.error(format_logger(userid,f"failed to check image validity imgfilename on Server.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='File read error.')  
     
     # return
@@ -429,6 +403,53 @@ async def get_colorized_images_list(user: user_dependency, db: db_dependency, s3
         raise HTTPException(status_code=500, detail='Database read error.')   
     return images_list
 
+# rate colorized image
+@app.post('/rate_colorized_image/{id}')
+async def rate_colorized_image(user: user_dependency, db: db_dependency, id: Annotated[int, Path(title="The ID of the image to rate")], rating=Imagerating):
+    """
+    Description
+    -----------
+    endpoint to rate an colorized image 
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    boolean: status of rating
+    """
+
+    # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /rate_colorized_image endpoint!"))
+
+    if (id is not None) and (rating is not None):
+        if (int(rating)>=0) and (int(rating)<=10):
+            color_image = db.query(pixlibs.models.COLOR_Images).filter(and_(pixlibs.models.COLOR_Images.user_id == user["id"],pixlibs.models.COLOR_Images.id == int(id))).first() or None
+            if color_image is not None:
+                try:
+                    color_image.rating=rating
+                    db.commit()
+                except Exception as e:
+                    logger.error(format_logger(user["id"],f"failed to rate color image {color_image.filename} on Database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail='Database update error.')
+            else:
+                logger.exception(format_logger(user["id"],"","Bads arguments (image id does not exist)"))
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Bads arguments (image id does not exist)")
+        else:
+            logger.exception(format_logger(user["id"],"","Bads arguments (rating must between 0 and 10)"))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Bads arguments (rating must between 0 and 10)")
+
+    else:
+        logger.exception(format_logger(user["id"],"","Bads arguments."))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad arguments.')
+    return {"message": "Your colorized image has been successfully rated !"}
+
 # download last colorized image
 @app.get('/download_last_colorized_image')
 async def download_last_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, bg_tasks: BackgroundTasks):
@@ -483,7 +504,7 @@ async def download_last_colorized_image(user: user_dependency, db: db_dependency
 
 # download colorized image with id
 @app.get('/download_colorized_image/{id}')
-async def download_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, id: int,bg_tasks: BackgroundTasks):
+async def download_colorized_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, id: Annotated[int, Path(title="The ID of the image to download")],bg_tasks: BackgroundTasks):
     """
     Description
     -----------
@@ -625,4 +646,4 @@ async def delete_user(user: user_dependency, username: str,db: db_dependency, s3
         raise HTTPException(status_code=500, detail=f"Database delete error : failed to delete user({username}) on Database.")    
 
     # return
-    return {'message': f"User({username}) + Data deleted succesfully !"}
+    return {'message': f"User({username}) + Data deleted successfully !"}

@@ -16,7 +16,6 @@ IMG_SIZE_H_MAX = os.getenv("IMG_SIZE_H_MAX")
 IMG_SIZE_W_MAX = os.getenv("IMG_SIZE_W_MAX")
 IMG_SIZE_KB_MAX = os.getenv("IMG_SIZE_KB_MAX")
 
-
 # Declare unit tests client
 @pytest.fixture(scope="module")
 def client():
@@ -132,15 +131,18 @@ def test_colorize_bw_image(client, test_user):
     assert "url" in response_json, "Response JSON does not contain 'url'."
     assert isinstance(response_json["url"], str), "'url' is not a string."
 
-# get colorized images list
+# get colorized images list test + download one image test + rate one image test
 def test_colorized_images_list(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/get_colorized_images_list", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     response2 = client.get(f"/download_colorized_image/{list(response.json().keys())[0]}", headers={"Authorization": f"Bearer {token}"})
     assert response2.status_code == 200
+    response3 = client.post(f"/rate_colorized_image/{list(response.json().keys())[0]}?rating=10",headers={"Authorization": f"Bearer {token}"})
+    assert response3.status_code == 200
+    assert response3.json() == {'message': "Your colorized image has been successfully rated !"} 
 
-# download last colorized image 
+# download last colorized image test
 def test_download_last_colorized_image(client,test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/download_last_colorized_image", headers={"Authorization": f"Bearer {token}"})
@@ -151,4 +153,4 @@ def test_delete_user(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.post("/delete_user?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    assert response.json() == {'message': "User(unittestuser) + Data deleted succesfully !"} 
+    assert response.json() == {'message': "User(unittestuser) + Data deleted successfully !"} 
