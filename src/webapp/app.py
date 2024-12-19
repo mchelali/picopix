@@ -44,102 +44,65 @@ if submit:
         placeholder.empty()
         token=res.json()
 
-        # title     
-        st.title("🎨 PicoPix - Service de Colorisation d'Images")
 
-        # Presentation   
-        st.markdown("""
-        Cette application permet de coloriser vos images en noir et blanc en utilisant deux algorithmes 
-        d'intelligence artificielle différents. Vous pourrez comparer les résultats et choisir la 
-        meilleure colorisation.
-        """)
+        #try:
+        headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
+        res2 = requests.get(url="http://api:8000/get_user_informations",headers=headers)
+        infouser = res2.json()
+        tab1,tab2,tab3,tab4,tab5=st.tabs(['Description','Coloriser une image','Images colorisées','Préréfences','Administration'])
+        with tab1:
+            # title     
+            st.title("🎨 PicoPix - Service de Colorisation d'Images")
 
+            st.markdown(f"User: {infouser['firstname']} {infouser['lastname']}")
 
+            # Presentation   
+            st.markdown("""
+            Cette application permet de coloriser vos images en noir et blanc en utilisant deux algorithmes 
+            d'intelligence artificielle différents. Vous pourrez comparer les résultats et choisir la 
+            meilleure colorisation.
+            """)
 
-        # display Instructions
-        st.header("Coloriser une image")
-        st.markdown(f"""
-        **Spécifications de l'image:**
-        - Format: JPG ou JPEG
-        - Dimensions: entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels
-        - Taille maximale: {IMG_SIZE_KB_MAX} Ko
-        - L'image doit être en noir et blanc
-        """)
+        with tab2:
+            # Colorize picture
+            st.header("Coloriser une image")
+            st.markdown(f"""
+            **Spécifications de l'image:**
+            - Format: JPG ou JPEG
+            - Dimensions: entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels
+            - Taille maximale: {IMG_SIZE_KB_MAX} Ko
+            - L'image doit être en noir et blanc
+            """)
 
-        ## Upload et Traitement
-        uploaded_file = st.file_uploader("Choisissez une image en noir et blanc", type=['jpg', 'jpeg'])
+            ## Upload et Traitement
+            uploaded_file = st.file_uploader("Choisissez une image en noir et blanc", type=['jpg', 'jpeg'])
 
-        if uploaded_file is not None:
-            try:
-                image = Image.open(uploaded_file)
-                
-                # Vérification des dimensions
-                if not (512 <= image.size[0] <= 2024 and 512 <= image.size[1] <= 2024):
-                    st.error(f"Les dimensions de l'image doivent être entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels")
-                else:
-                    st.subheader("Image Originale")
-                    st.image(image, use_column_width=True)
+            if uploaded_file is not None:
+                try:
+                    image = Image.open(uploaded_file)
                     
-                    if st.button('Coloriser'):
-                        files = {'file': ('image.jpg', uploaded_file.getvalue())}
-                        
-                        try:
-                            # Appel des deux algorithmes
-                            response1 = requests.post('http://api:8000/colorize/algo1', files=files)
-                            response2 = requests.post('http://api:8000/colorize/algo2', files=files)
-                            
-                            if response1.status_code == 200 and response2.status_code == 200:
-                                col1, col2 = st.columns(2)
-                                
-                                # Affichage des résultats
-                                with col1:
-                                    st.subheader("Algorithme 1")
-                                    colorized1 = Image.open(io.BytesIO(response1.content))
-                                    st.image(colorized1, use_column_width=True)
+                    # Vérification des dimensions
+                    if not (512 <= image.size[0] <= 2024 and 512 <= image.size[1] <= 2024):
+                        st.error(f"Les dimensions de l'image doivent être entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels")
+                    else:
+                        st.subheader("Image Originale")
+                        st.image(image, use_column_width=True)
                                     
-                                with col2:
-                                    st.subheader("Algorithme 2")
-                                    colorized2 = Image.open(io.BytesIO(response2.content))
-                                    st.image(colorized2, use_column_width=True)
-                                
-                                # Choix de la meilleure colorisation
-                                choice = st.radio(
-                                    "Quelle colorisation préférez-vous ?",
-                                    ('Algorithme 1', 'Algorithme 2')
-                                )
-                                
-                                if st.button('Valider mon choix'):
-                                    # Sauvegarde du choix dans la base de données
-                                    choice_data = {
-                                        'algorithm': choice,
-                                        'image_id': uploaded_file.name,
-                                        'timestamp': pd.Timestamp.now()
-                                    }
-                                    
-                                    # Affichage des statistiques
-                                    @st.cache_data
-                                    def load_stats():
-                                        # Simuler la récupération des données depuis la base
-                                        df = pd.DataFrame({
-                                            'Algorithm': ['Algorithme 1', 'Algorithme 2'],
-                                            'Votes': [45, 55]
-                                        })
-                                        return df
-                                    
-                                    stats_df = load_stats()
-                                    fig = px.pie(stats_df, values='Votes', names='Algorithm',
-                                            title='Répartition des préférences utilisateurs')
-                                    st.plotly_chart(fig)
-                                    
-                        except Exception as e:
-                            st.error(f"Erreur lors de la colorisation: {str(e)}")
-                            
-            except Exception as e:
-                st.error(f"Erreur lors du traitement de l'image: {str(e)}")
-
-
-
-
+                except Exception as e:
+                    st.error(f"Erreur lors de la colorisation: {str(e)}")
+        with tab3:
+            # Colorized pictures tab
+            st.header("Images colorisées")
+        with tab4:
+            # Pref tab
+            st.header("Préférences")
+        if infouser['isadmin'] == True:
+            with tab5:
+                # Administration tab
+                st.header("Administration")
+    
+        #except Exception as e:
+        #    st.error(f"Erreur lors de la récupération des informations de l'utilisateur: {str(e)}")      
     else:
         st.error(f"Login failure ! Error {res.status_code} {res.json()}")
 else:

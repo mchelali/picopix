@@ -134,6 +134,40 @@ async def favicon():
     file_path = os.path.join(app.root_path, "static", file_name)
     return FileResponse(path=file_path, headers={"Content-Disposition": "attachment; filename=" + file_name})
 
+# get user informations
+@app.get('/get_user_informations')
+async def get_user_informations(user: user_dependency, db: db_dependency):
+    """
+    Description
+    -----------
+    endpoint to get list of user's informations
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    string: list of data(json)
+    """
+
+    # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /get_colorized_images_list endpoint!"))
+
+    #contruct dictionnary
+    try:
+        userdata = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+        user_informations = {"firstname":f"{userdata.firstname}","lastname":f"{userdata.lastname}","favorite_model":f"{userdata.pref_model}","isadmin":bool({userdata.isadmin})}
+    except Exception as e:
+        logger.error(format_logger(user["id"],f"failed to read color images on Database.",repr(e)), exc_info=True)
+        raise HTTPException(status_code=500, detail='Database read error.')   
+    return user_informations
+
 # black & white image upload
 @app.post('/upload_bw_image')
 async def upload_bw_image(user: user_dependency, db: db_dependency, s3client: storage_dependency, file: UploadFile = File(...)):

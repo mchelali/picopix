@@ -46,7 +46,7 @@ def test_create_user(client):
                                                 "firstname":"Test",
                                                 "lastname":"UNIT",
                                                 "password":"testpassword"})
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Unexpected status code: {response.status_code}"
     assert response.json() == {
         'message': f"User unittestuser created !",
     } 
@@ -54,16 +54,31 @@ def test_create_user(client):
 # authenticate test (bad password & no token)
 def test_auth_token(client, test_user_with_bad_password):
     response = client.post("/auth/token",data=test_user_with_bad_password)                                           
-    assert response.status_code == 401
+    assert response.status_code == 401, f"Unexpected status code: {response.status_code}"
 
 # authenticate test (get token)
 def test_auth_token(client, test_user):
     response = client.post("/auth/token",data=test_user)                                           
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     token =response.json()["access_token"]
     assert token is not None
     return token
 
+# get user informations test
+def test_get_user_informations(client, test_user):
+    token = test_auth_token(client, test_user)
+    response = client.get("/get_user_informations", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    response_json = response.json()
+    assert "firstname" in response_json, "Response JSON does not contain 'firstname'."
+    assert isinstance(response_json["firstname"], str), "'firstname' is not a string."
+    assert "lastname" in response_json, "Response JSON does not contain 'lastname'."
+    assert isinstance(response_json["lastname"], str), "'lastname' is not a string."
+    assert "favorite_model" in response_json, "Response JSON does not contain 'favorite_model'."
+    assert isinstance(response_json["favorite_model"], str), "'favorite_model' is not a string."
+    assert "isadmin" in response_json, "Response JSON does not contain 'isadmin'."
+    assert isinstance(response_json["isadmin"], bool), "'isadmin' is not a boolean."
+    
 # upload valid bw image test
 def test_upload_bw_image(client, test_user):
     token = test_auth_token(client, test_user)
@@ -126,7 +141,7 @@ def test_upload_small_image(client, test_user):
 def test_colorize_bw_image(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/colorize_bw_image", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     response_json = response.json()
     assert "url" in response_json, "Response JSON does not contain 'url'."
     assert isinstance(response_json["url"], str), "'url' is not a string."
@@ -135,22 +150,22 @@ def test_colorize_bw_image(client, test_user):
 def test_colorized_images_list(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/get_colorized_images_list", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     response2 = client.get(f"/download_colorized_image/{list(response.json().keys())[0]}", headers={"Authorization": f"Bearer {token}"})
-    assert response2.status_code == 200
+    assert response2.status_code == 200, f"Unexpected status code: {response.status_code}"
     response3 = client.post(f"/rate_colorized_image/{list(response.json().keys())[0]}?rating=10",headers={"Authorization": f"Bearer {token}"})
-    assert response3.status_code == 200
+    assert response3.status_code == 200, f"Unexpected status code: {response.status_code}"
     assert response3.json() == {'message': "Your colorized image has been successfully rated !"} 
 
 # download last colorized image test
 def test_download_last_colorized_image(client,test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/download_last_colorized_image", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
 
 # delete_user endpoint test
 def test_delete_user(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.post("/delete_user?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     assert response.json() == {'message': "User(unittestuser) + Data deleted successfully !"} 
