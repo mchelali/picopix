@@ -430,7 +430,7 @@ async def get_colorized_images_list(user: user_dependency, db: db_dependency, s3
         imageitem = dict()
         for image in color_images:
             bw_image = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.id == image.bwimage_id).first()
-            imageitem = {"bw_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/bw_images/{bw_image.filename}","colorized_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/color_images/{image.filename}"}
+            imageitem = {"bw_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{bw_image.filename}","colorized_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{image.filename}"}
             images_list[image.id]=imageitem
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read color images on Database.",repr(e)), exc_info=True)
