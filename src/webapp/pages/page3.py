@@ -1,4 +1,5 @@
 from navigation import make_sidebar
+from time import sleep
 import requests
 from PIL import Image
 import streamlit as st
@@ -17,7 +18,13 @@ res = requests.get(url="http://api:8000/get_colorized_images_list",headers=heade
 infoimages = res.json()
 images_list = []
 for img in infoimages:
-    st.text(f"Image {img}")
+    if infoimages[img]['rating']!="None":
+        image_rating = int(infoimages[img]['rating'])*"🌟"
+    else:
+        image_rating = "-"
+    st.text(f"Image {img} ({image_rating})")
+    st.text(f"Date : {infoimages[img]['creation_date']}")
+    st.text(f"Modèle :")
     st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=60)
     images_list.append(img)
 
@@ -30,4 +37,6 @@ if st.button("Noter",icon="🥇"):
     headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
     res2 = requests.post(url=f"http://api:8000/rate_colorized_image/{rateimage[len(rateimage)-6:]}?rating={rate}",headers=headers)
     if res2.status_code==200:
-        st.write(f"{rateimage} a été notée avec succès.")
+        st.write(f"L'image {rateimage} a été notée avec succès.")
+        sleep(1)
+        st.rerun()
