@@ -20,7 +20,7 @@ While these subsets offer a complete setup for deep learning training workflows,
 To use the MSCOCO dataset as provided by Microsoft, download the images and annotations by running the following command:
 
 ```bash
-python prepare_dataset.py
+python prepare_mscoco_dataset.py
 ```
 
 This script will download, extract, and organize the dataset into train, validation, and test sets, allowing for an easy setup if you decide to work with the full dataset.

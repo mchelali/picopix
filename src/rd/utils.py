@@ -51,10 +51,10 @@ class Pix2pixDataset(Dataset):
         return len(self.image_paths)
 
 
-class ColorizeData(Dataset):
+class LABColorDataset(Dataset):
     def __init__(self, root_dir: str, transform=None):
         """
-        Initialize the ColorizeData dataset.
+        Initialize the LABColorDataset dataset.
 
         Args:
             root_dir (str): Directory containing images.
@@ -156,52 +156,6 @@ class Trainer:
         self.device: torch.device = device
         self.train_losses: list[float] = []
         self.val_losses: list[float] = []
-
-    # def to_rgb(
-    #     self,
-    #     grayscale_input: torch.Tensor,
-    #     ab_input: torch.Tensor,
-    #     save_path: Optional[Dict[str, str]] = None,
-    #     save_name: Optional[str] = None,
-    # ) -> None:
-    #     """
-    #     Converts grayscale and AB channels to an RGB image, optionally saving it.
-
-    #     Args:
-    #         grayscale_input (torch.Tensor): Grayscale channel input (L channel).
-    #         ab_input (torch.Tensor): AB color channels.
-    #         save_path (Optional[Dict[str, str]]): Dictionary with paths for saving grayscale and colorized images.
-    #         save_name (Optional[str]): Name to use when saving images.
-    #     """
-    #     color_image = (
-    #         torch.cat((grayscale_input, ab_input), 0).numpy().transpose((1, 2, 0))
-    #     )
-    #     color_image[:, :, 0] *= 100
-    #     color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-    #     color_image = lab2rgb(color_image.astype(np.float64))
-    #     grayscale_input_np = grayscale_input.squeeze().numpy()
-
-    #     if save_path and save_name:
-    #         self._save_images(grayscale_input_np, color_image, save_path, save_name)
-
-    # def _save_images(
-    #     self,
-    #     grayscale_img: np.ndarray,
-    #     colorized_img: np.ndarray,
-    #     save_path: Dict[str, str],
-    #     save_name: str,
-    # ) -> None:
-    #     """
-    #     Saves grayscale and colorized images to the specified paths.
-
-    #     Args:
-    #         grayscale_img (np.ndarray): Grayscale image data.
-    #         colorized_img (np.ndarray): Colorized image data.
-    #         save_path (Dict[str, str]): Dictionary with paths for saving grayscale and colorized images.
-    #         save_name (str): Name to use when saving images.
-    #     """
-    #     plt.imsave(f"{save_path['grayscale']}{save_name}", grayscale_img, cmap="gray")
-    #     plt.imsave(f"{save_path['colorized']}{save_name}", colorized_img)
 
     def train(
         self,

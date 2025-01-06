@@ -15,21 +15,37 @@ services:
     networks:
       - localhost
 
-  #r_and_d:
-  #  build:
-  #    context: .
-  #    dockerfile: docker/Dockerfile.rd
-  #    args:
-  #      version: '0.0.1'
-  #  ports:
-  #    - "8002:8002"
-  #  volumes:
-  #    - ./src/rd:/r_and_d
-  #    - ./dataset/:/r_and_d/dataset
-  #    - ./models/:/r_and_d/models
-  #    - .env:/r_and_d/.env
-  #  networks:
-  #    - localhost
+  r_and_d:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.rd
+      shm_size: "2gb" # <-- used during the build
+      args:
+        version: '0.0.1'
+    shm_size: "12gb" # <-- used during the run
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_REGION_NAME}
+    ports:
+      - "8002:8002"
+      - "2222:22"
+    volumes:
+      - ./src/rd:/r_and_d
+      - ./dataset/:/r_and_d/dataset
+      - ./src/models/:/r_and_d/models
+      # - .env:/r_and_d/.env
+    depends_on:
+      - minio
+    networks:
+      - localhost
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # ou "all" pour tous les GPU
+              capabilities: [ gpu ]
 
   webapp:
     build:
@@ -48,28 +64,28 @@ services:
       - api
   
   minio:
-     image: minio/minio
-     container_name: minio
-     environment:
+    image: minio/minio
+    container_name: minio
+    environment:
        MINIO_ROOT_USER: minioadmin
        MINIO_ROOT_PASSWORD: minioadmin     
        MINIO_ACCESS_KEY: minioadmin
        MINIO_SECRET_KEY: minioadmin
        MINIO_VOLUMES: /data
-     volumes:
+    volumes:
        - ./minio_data:/data
-     ports:
+    ports:
        - "9000:9000"
        - "9001:9001"
-     networks:
+    networks:
        - localhost
-     command: "minio server --console-address :9001"
-     restart: unless-stopped
-     healthcheck:
-       test: [ "CMD", "mc", "ready", "local" ]
-       interval: 30s
-       timeout: 20s
-       retries: 3
+    command: "minio server --console-address :9001"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
   postgres:
     image: postgres:15-alpine
