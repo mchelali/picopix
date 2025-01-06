@@ -5,16 +5,16 @@ RUN apt update && apt install -y gcc libpq-dev ffmpeg
 # Installation des dépendances
 WORKDIR /webapp
 COPY ./src/webapp/pyproject.toml .
+COPY ./src/webapp/poetry.toml .
+COPY ./src/webapp/poetry.lock .
 RUN pip3 install poetry==1.8.3 
-
 RUN poetry install
 
-# Copier le reste du code
-COPY ./src/webapp .
-COPY .env .
+# Exposer le port de Streamlit
+EXPOSE 8501
 
-# Exposer le port de FastAPI
-EXPOSE 80
-
-# Lancer l'application FastAPI
+# Lancer l'application Streamlit
+#Pour le dev
 CMD ["tail", "-f", "/dev/null"]
+#Pour la prod
+#CMD ["poetry","run","streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
