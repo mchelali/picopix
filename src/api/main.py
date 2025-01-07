@@ -216,6 +216,49 @@ async def set_favorite_model(user: user_dependency, db: db_dependency, favorite_
         logger.exception(format_logger(user["id"],"","Bads arguments."))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad arguments.')
 
+# get users list
+@app.get('/get_users_list')
+async def get_users_list(user: user_dependency, db: db_dependency):
+    """
+    Description
+    -----------
+    endpoint to get users list
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+    Returns
+    -------
+    string: users list (json)
+    """
+
+    #Check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    #log
+    logger.info(format_logger(user["id"],"","Request /disable_user!"))
+
+    # check if username = user authentified or if user is admin
+    operator_user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+    if not operator_user.isadmin:
+        logger.exception('You are not authorized to get users list.')
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to get users list.')
+    else:
+        try:
+            users = db.query(pixlibs.models.Users).all()
+            users_list = dict()
+            user_fields = dict()
+            for usera in users:
+                user_fields = {"firstname":usera.firstname,"lastname":usera.lastname,"isadmin":usera.isadmin,"disabled":usera.disabled}
+                users_list[usera.username]=user_fields
+        except Exception as e:
+            logger.error(format_logger(user["id"],f"failed to list users in database.",repr(e)), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"failed to list users in database.")     
+        # return
+        return users_list
+
+
 
 # disable user
 @app.post('/disable_user')
@@ -250,9 +293,13 @@ async def disable_user(user: user_dependency, db: db_dependency,username: str):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to disable user.')
         else:
             try:
-                user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
-                user.disabled=True
-                db.commit()
+                usertodisable = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
+                if usertodisable is not None:
+                    usertodisable.disabled=True
+                    db.commit()
+                else:
+                    logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"failed to find user {username} in database.")   
             except Exception as e:
                 logger.error(format_logger(user["id"],f"failed to disable user {username} in database.",repr(e)), exc_info=True)
                 raise HTTPException(status_code=500, detail=f"failed to disable user {username} in database.")     
@@ -292,14 +339,66 @@ async def disable_user(user: user_dependency, db: db_dependency,username: str):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to enable user.')
         else:
             try:
-                user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
-                user.disabled=False
-                db.commit()
+                usertoenable = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
+                if usertoenable is not None:
+                    usertoenable.disabled=False
+                    db.commit()
+                else:
+                    logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"failed to find user {username} in database.")                 
             except Exception as e:
                 logger.error(format_logger(user["id"],f"failed to enable user {username} in database.",repr(e)), exc_info=True)
                 raise HTTPException(status_code=500, detail=f"failed to enable user {username} in database.")    
             # return
             return {'message': f"User({username}) is enable !"} 
+
+# enable user
+@app.post('/set_admin_access')
+async def set_admin_access(user: user_dependency, db: db_dependency,username: str):
+    """
+    Description
+    -----------
+    endpoint to set admin access
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+    Returns
+    -------
+    string: json message
+    """
+    #Check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    #log
+    logger.info(format_logger(user["id"],"","Request /disable_user!"))
+
+    # check if username = user authentified or if user is admin , get user id
+    if user["username"]==username:
+        logger.error(format_logger(user["id"],"Enable your own account is prohibited.",""), exc_info=True)
+        raise HTTPException(status_code=500, detail="Enable your own account is prohibited.")     
+    else:
+        operator_user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+        if not operator_user.isadmin:
+            logger.exception('You are not authorized to set/unset admin user.')
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to set/unset admin user.')
+        else:
+            try:
+                usertochange = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
+                if usertochange is not None:
+                    usertochange.isadmin = not usertochange.isadmin
+                    db.commit()
+                else:
+                    logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"failed to find user {username} in database.")                 
+            except Exception as e:
+                logger.error(format_logger(user["id"],f"failed to enable user {username} in database.",repr(e)), exc_info=True)
+                raise HTTPException(status_code=500, detail=f"failed to enable user {username} in database.")    
+            # return
+            if usertochange.isadmin == True:
+                return {'message': f"Admin access is enabled for {username}!"} 
+            if usertochange.isadmin == False:
+                return {'message': f"Admin access is disabled for {username}!"} 
 
 # black & white image upload
 @app.post('/upload_bw_image')
@@ -806,8 +905,12 @@ async def delete_user(user: user_dependency, username: str,db: db_dependency, s3
     # delete user
     try:
         usertodelete = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == userid).first()
-        db.delete(usertodelete)
-        db.commit()
+        if usertodelete is not None:
+            db.delete(usertodelete)
+            db.commit()
+        else:
+            logger.error(format_logger(user["id"],f"failed to find user {username} in database.",repr(e)), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"failed to find user {username} in database.")   
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to delete user({username}) on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database delete error : failed to delete user({username}) on Database.")    

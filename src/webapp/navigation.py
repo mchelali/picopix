@@ -23,6 +23,7 @@ def make_sidebar():
             headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
             res2 = requests.get(url="http://api:8000/get_user_informations",headers=headers)
             infouser = res2.json()
+            st.session_state.favmodel = infouser['favorite_model']
             st.markdown(f"Utilisateur : {infouser['firstname']} {infouser['lastname']}")
             st.page_link("pages/page1.py", label="Description", icon="📌")
             st.page_link("pages/page2.py", label="Coloriser", icon="🔮")

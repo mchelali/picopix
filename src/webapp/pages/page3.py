@@ -37,6 +37,8 @@ if st.button("Noter",icon="🥇"):
     headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
     res2 = requests.post(url=f"http://api:8000/rate_colorized_image/{rateimage[len(rateimage)-6:]}?rating={rate}",headers=headers)
     if res2.status_code==200:
-        st.write(f"L'image {rateimage} a été notée avec succès.")
+        st.success(f"L'image {rateimage} a été notée avec succès !")
         sleep(1)
         st.rerun()
+    else:
+        st.error(f"Erreur : {res2.json()}")

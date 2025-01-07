@@ -183,6 +183,12 @@ def test_set_favorite_model(client, test_user):
     assert response3.status_code == 200, f"Unexpected status code: {response3.status_code}"
     assert response3.json() == {'message': f"Your favorite model is pix2pix !"}  
 
+# get users list test
+def test_users_list(client, test_admin):
+    token = test_auth_token(client, test_admin)
+    response = client.get("/get_users_list", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+
 # disable_user endpoint test
 def test_disable_user(client, test_admin):
     token = test_auth_token(client, test_admin)
@@ -196,6 +202,16 @@ def test_enable_user(client, test_admin):
     response = client.post("/enable_user?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     assert response.json() == {'message': "User(unittestuser) is enable !"} 
+
+# set admin access endpoint test
+def test_set_admin_access(client, test_admin):
+    token = test_auth_token(client, test_admin)
+    response = client.post("/set_admin_access?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response.json() == {'message': "Admin access is enabled for unittestuser!"}
+    response2 = client.post("/set_admin_access?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
+    assert response2.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response2.json() == {'message': "Admin access is disabled for unittestuser!"} 
 
 # delete_user endpoint test
 def test_delete_user(client, test_user):
