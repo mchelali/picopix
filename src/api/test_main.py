@@ -15,6 +15,8 @@ IMG_SIZE_W_MIN = os.getenv("IMG_SIZE_W_MIN")
 IMG_SIZE_H_MAX = os.getenv("IMG_SIZE_H_MAX")
 IMG_SIZE_W_MAX = os.getenv("IMG_SIZE_W_MAX")
 IMG_SIZE_KB_MAX = os.getenv("IMG_SIZE_KB_MAX")
+PICOPIX_ADM = os.getenv("PICOPIX_ADM")
+PICOPIX_ADM_PWD = os.getenv("PICOPIX_ADM_PWD")
 
 # Declare unit tests client
 @pytest.fixture(scope="module")
@@ -22,10 +24,15 @@ def client():
     with TestClient(app) as c:
         yield c
 
-# authentification valide
+# authentification user valide
 @pytest.fixture(scope="module")
 def test_user():
     return {"username": "unittestuser", "password": "testpassword"}
+
+# authentification admin valide
+@pytest.fixture(scope="module")
+def test_admin():
+    return {"username": PICOPIX_ADM, "password": PICOPIX_ADM_PWD}
 
 # authentification invalide
 @pytest.fixture(scope="module")
@@ -75,7 +82,7 @@ def test_get_user_informations(client, test_user):
     assert "lastname" in response_json, "Response JSON does not contain 'lastname'."
     assert isinstance(response_json["lastname"], str), "'lastname' is not a string."
     assert "favorite_model" in response_json, "Response JSON does not contain 'favorite_model'."
-    assert isinstance(response_json["favorite_model"], str), "'favorite_model' is not a string."
+    assert isinstance(response_json["favorite_model"], int), "'favorite_model' is not an integer."
     assert "isadmin" in response_json, "Response JSON does not contain 'isadmin'."
     assert isinstance(response_json["isadmin"], bool), "'isadmin' is not a boolean."
     
@@ -162,6 +169,33 @@ def test_download_last_colorized_image(client,test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/download_last_colorized_image", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+
+# set favorite model endpoint test
+def test_set_favorite_model(client, test_user):
+    token = test_auth_token(client, test_user)
+    response = client.post("/set_favorite_model", headers={"Authorization": f"Bearer {token}"}, json={"mdl":0})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response.json() == {'message': f"You don't have favorite model!"}
+    response2 = client.post("/set_favorite_model", headers={"Authorization": f"Bearer {token}"}, json={"mdl":1})
+    assert response2.status_code == 200, f"Unexpected status code: {response2.status_code}"
+    assert response2.json() == {'message': f"Your favorite model is autoencoder !"}  
+    response3 = client.post("/set_favorite_model", headers={"Authorization": f"Bearer {token}"}, json={"mdl":2})
+    assert response3.status_code == 200, f"Unexpected status code: {response3.status_code}"
+    assert response3.json() == {'message': f"Your favorite model is pix2pix !"}  
+
+# disable_user endpoint test
+def test_disable_user(client, test_admin):
+    token = test_auth_token(client, test_admin)
+    response = client.post("/disable_user?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response.json() == {'message': "User(unittestuser) is disable !"} 
+
+# enable_user endpoint test
+def test_enable_user(client, test_admin):
+    token = test_auth_token(client, test_admin)
+    response = client.post("/enable_user?username=unittestuser", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    assert response.json() == {'message': "User(unittestuser) is enable !"} 
 
 # delete_user endpoint test
 def test_delete_user(client, test_user):

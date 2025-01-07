@@ -40,7 +40,6 @@ def make_sidebar():
         elif get_current_page_name() != "app":
             st.switch_page("app.py")
 
-
 def logout():
     st.session_state.logged_in = False
     st.session_state.user = ""

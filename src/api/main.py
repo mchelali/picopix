@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 from pixlibs.database import engine
 import pixlibs.storage_boto3
 import pixlibs.auth
-from pixlibs.schemas_api import Imagerating
+from pixlibs.schemas_api import Imagerating,FavModel
 from passlib.context import CryptContext
 from pixlibs.auth import get_current_user
 from pixlibs.storage_boto3 import get_storage, storageclient
@@ -162,11 +162,144 @@ async def get_user_informations(user: user_dependency, db: db_dependency):
     #contruct dictionnary
     try:
         userdata = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
-        user_informations = {"firstname":f"{userdata.firstname}","lastname":f"{userdata.lastname}","favorite_model":f"{userdata.pref_model}","isadmin":bool({userdata.isadmin})}
+        user_informations = {"firstname":userdata.firstname,"lastname":userdata.lastname,"favorite_model":userdata.pref_model,"isadmin":userdata.isadmin}
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read color images on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Database read error.')   
     return user_informations
+
+# set favorite model
+@app.post('/set_favorite_model')
+async def set_favorite_model(user: user_dependency, db: db_dependency, favorite_model: FavModel):
+    """
+    Description
+    -----------
+    endpoint to set user's favorite model
+
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+
+    Returns
+    -------
+    string: json message
+    """
+    # check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    # log
+    logger.info(format_logger(user["id"],"","Request /get_colorized_images_list endpoint!"))
+
+    # 
+    if favorite_model is not None:
+        if (int(favorite_model.mdl)>=0) and (int(favorite_model.mdl)<=2):
+            try:
+                user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+                user.pref_model=int(favorite_model.mdl)
+                db.commit()
+            except Exception as e:
+                logger.error(format_logger(user["id"],f"failed to set favorite model on Database.",repr(e)), exc_info=True)
+                raise HTTPException(status_code=500, detail='Database write error.')
+            # return
+            if int(favorite_model.mdl) == 0:
+                return {'message': f"You don't have favorite model!"} 
+            elif int(favorite_model.mdl) == 1:
+                return {'message': f"Your favorite model is autoencoder !"} 
+            elif int(favorite_model.mdl) == 2:
+                return {'message': f"Your favorite model is pix2pix !"} 
+        else:
+            logger.exception(format_logger(user["id"],"","Bads arguments."))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad arguments.')           
+    else:
+        logger.exception(format_logger(user["id"],"","Bads arguments."))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Bad arguments.')
+
+
+# disable user
+@app.post('/disable_user')
+async def disable_user(user: user_dependency, db: db_dependency,username: str):
+    """
+    Description
+    -----------
+    endpoint to set favorite model
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+    Returns
+    -------
+    string: json message
+    """
+    #Check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    #log
+    logger.info(format_logger(user["id"],"","Request /disable_user!"))
+
+    # check if username = user authentified or if user is admin , get user id
+    if user["username"]==username:
+        logger.error(format_logger(user["id"],"Disable your own account is prohibited.",""), exc_info=True)
+        raise HTTPException(status_code=500, detail="Disable your own account is prohibited.")     
+    else:
+        operator_user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+        if not operator_user.isadmin:
+            logger.exception('You are not authorized to disable user.')
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to disable user.')
+        else:
+            try:
+                user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
+                user.disabled=True
+                db.commit()
+            except Exception as e:
+                logger.error(format_logger(user["id"],f"failed to disable user {username} in database.",repr(e)), exc_info=True)
+                raise HTTPException(status_code=500, detail=f"failed to disable user {username} in database.")     
+            # return
+            return {'message': f"User({username}) is disable !"} 
+
+# enable user
+@app.post('/enable_user')
+async def disable_user(user: user_dependency, db: db_dependency,username: str):
+    """
+    Description
+    -----------
+    endpoint to set favorite model
+    Parameters
+    ----------
+    user: oauth2 token required
+    db: postgres connexion required
+    Returns
+    -------
+    string: json message
+    """
+    #Check authentication 
+    if user is None:
+        logger.exception('Authentication Failed')
+        raise HTTPException(status_code=401, detail='Authentication Failed')
+    #log
+    logger.info(format_logger(user["id"],"","Request /disable_user!"))
+
+    # check if username = user authentified or if user is admin , get user id
+    if user["username"]==username:
+        logger.error(format_logger(user["id"],"Enable your own account is prohibited.",""), exc_info=True)
+        raise HTTPException(status_code=500, detail="Enable your own account is prohibited.")     
+    else:
+        operator_user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first()
+        if not operator_user.isadmin:
+            logger.exception('You are not authorized to enable user.')
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not authorized to enable user.')
+        else:
+            try:
+                user = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.username == username).first()
+                user.disabled=False
+                db.commit()
+            except Exception as e:
+                logger.error(format_logger(user["id"],f"failed to enable user {username} in database.",repr(e)), exc_info=True)
+                raise HTTPException(status_code=500, detail=f"failed to enable user {username} in database.")    
+            # return
+            return {'message': f"User({username}) is enable !"} 
 
 # black & white image upload
 @app.post('/upload_bw_image')

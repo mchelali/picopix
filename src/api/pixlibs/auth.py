@@ -73,6 +73,8 @@ def authenticate_user(username: str, password: str, db):
     user = db.query(models.Users).filter(models.Users.username == username).first()
     if not user:
         return False
+    if user.disabled == True:
+        return False
     # check of user's password (hashed) is same as in database
     if not bcrypt_context.verify(password, user.hashed_password):
         return False
