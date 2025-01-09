@@ -583,7 +583,8 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
     # image colorization
     try:
         grayscale_image = cv2.imread(f"cache{tempbwfilename.name}.jpg", cv2.IMREAD_GRAYSCALE)
-        rgb_image = infer_pix2pix(grayscale_image)
+        # rgb_image = infer_pix2pix(grayscale_image)
+        rgb_image = infer_autoencoder(grayscale_image)
         # rgb_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2RGB)
         # cv2.fillPoly(rgb_image, [np.array([[170,50],[240, 40],[240, 150], [210, 100], [130, 130]], np.int32)], (255,150,255))
     except Exception as e:

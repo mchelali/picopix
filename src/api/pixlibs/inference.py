@@ -117,15 +117,18 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
         color_image = lab2rgb(color_image.astype(np.float64))
         return color_image
 
+    if image is None:
+        raise ValueError("Input image is None. Please check the input.")
     
-    # Validate input normalization
-    if not (0 <= image.min() and image.max() <= 1):
-        print("Input image values should be normalized to the range [0, 1].")
-        image = image.astype(np.float16) / 255.
-
     # Resize and prepare the input image
     original_h, original_w = image.shape[:2]
     input_gray = cv2.resize(image, (256, 256))  # Resize to 256x256
+
+    # Validate input normalization
+    if not (0 <= input_gray.min() and input_gray.max() <= 1):
+        print("Input image values should be normalized to the range [0, 1].")
+        input_gray = input_gray.astype(np.float16) / 255.
+
     input_gray = torch.from_numpy(input_gray).unsqueeze(0).unsqueeze(0).float().to(device)  # Shape: (1, 1, 256, 256)
 
     # Perform inference
@@ -133,7 +136,7 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
         output_ab = models_names["autoencoder"](input_gray)  # Shape: (1, 2, 256, 256)
 
     # Convert to RGB and resize to original dimensions
-    colored_image = to_rgb(input_gray[0, 0].cpu(), output_ab[0].cpu())
+    colored_image = to_rgb(input_gray[0].cpu(), output_ab[0].cpu())
     colored_image = cv2.resize(colored_image, (original_w, original_h))  # Resize to original dimensions
     colored_image = (colored_image * 255).astype(np.uint8)  # Scale to [0, 255] for visualization
 
