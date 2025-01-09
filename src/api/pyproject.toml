@@ -28,6 +28,8 @@ httpx = "^0.28.0"
 pytest = "^8.3.4"
 torch = "^2.5.1"
 torchvision = "^0.20.1"
+requests = "^2.32.3"
+scikit-image = "0.22"
 
 [build-system]
 requires = ["poetry-core"]
