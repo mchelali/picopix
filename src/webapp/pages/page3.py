@@ -32,7 +32,7 @@ st.write("")
 st.write("")
 st.markdown(":rainbow[Notation]")
 rateimage = st.selectbox("Image",(images_list))
-rate = st.number_input('Note (0 à 10)', min_value=0, max_value=10, value=5, step=1)
+rate = st.number_input('Note (0 à 10)', min_value=0, max_value=5, value=2, step=1)
 if st.button("Noter",icon="🥇"):
     headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
     res2 = requests.post(url=f"http://api:8000/rate_colorized_image/{rateimage[len(rateimage)-6:]}?rating={rate}",headers=headers)

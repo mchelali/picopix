@@ -11,7 +11,7 @@ class Imagerating(BaseModel):
     @field_validator("rate")
     def rating_verification(cls,v):
         if v<0 | v>5:
-            raise ValueError("Invalid rating (must be between 0 and 10)")
+            raise ValueError("Invalid rating (must be between 0 and 5)")
         return v
 
 # class Favorite Model

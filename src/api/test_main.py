@@ -150,17 +150,20 @@ def test_colorize_bw_image(client, test_user):
     response = client.get("/colorize_bw_image", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     response_json = response.json()
-    assert "url" in response_json, "Response JSON does not contain 'url'."
-    assert isinstance(response_json["url"], str), "'url' is not a string."
+    assert "url1" in response_json, "Response JSON does not contain 'url1'."
+    assert isinstance(response_json["url1"], str), "'url' is not a string."
+    assert "url2" in response_json, "Response JSON does not contain 'url2'."
+    assert isinstance(response_json["url2"], str), "'url' is not a string."
+
 
 # get colorized images list test + download one image test + rate one image test
-def test_colorized_images_list(client, test_user):
+def test_colorized_images_list_download_rate_image(client, test_user):
     token = test_auth_token(client, test_user)
     response = client.get("/get_colorized_images_list", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
     response2 = client.get(f"/download_colorized_image/{list(response.json().keys())[0]}", headers={"Authorization": f"Bearer {token}"})
     assert response2.status_code == 200, f"Unexpected status code: {response.status_code}"
-    response3 = client.post(f"/rate_colorized_image/{list(response.json().keys())[0]}?rating=10",headers={"Authorization": f"Bearer {token}"})
+    response3 = client.post(f"/rate_colorized_image/{list(response.json().keys())[0]}?rating=5",headers={"Authorization": f"Bearer {token}"})
     assert response3.status_code == 200, f"Unexpected status code: {response.status_code}"
     assert response3.json() == {'message': "Your colorized image has been successfully rated !"} 
 

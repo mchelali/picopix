@@ -66,8 +66,13 @@ if uploaded_file is not None:
                                 headers=headers,)
                 if res2.status_code==200:
                     # if colorize ok then display colorized image (bucket url)
-                    st.subheader("Image Colorisée")
-                    st.image(Image.open(requests.get(f"{res2.json()['url']}",stream=True).raw),use_container_width=True)
+                    st.subheader("Images Colorisées")
+                    if res2.json()['url1'] != "":
+                        st.write("Modèle Autoencoder:")
+                        st.image(Image.open(requests.get(f"{res2.json()['url1']}",stream=True).raw),use_container_width=True)
+                    if res2.json()['url2'] != "":
+                        st.write("Modèle Pix2Pix:")
+                        st.image(Image.open(requests.get(f"{res2.json()['url2']}",stream=True).raw),use_container_width=True)
                 else:
                     st.error(f"Error {res2.status_code} {res2.json()['detail']}")
             else:

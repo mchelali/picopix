@@ -580,30 +580,50 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
         logger.error(format_logger(user["id"],f"failed to download last bw image uploaded on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='File write error on server (s3->server).')
 
+    # get user favorite model
+    favmodeluser = db.query(pixlibs.models.Users).filter(pixlibs.models.Users.id == user["id"]).first().pref_model
+    if favmodeluser==0:
+        favmodeluser=3
+    # set value in binary string
+    favmodeluser= str(bin(favmodeluser)[2:]).rjust(2,'0')
+    print(favmodeluser)
+
     # image colorization
     try:
         grayscale_image = cv2.imread(f"cache{tempbwfilename.name}.jpg", cv2.IMREAD_GRAYSCALE)
-        # rgb_image = infer_pix2pix(grayscale_image)
-        rgb_image = infer_autoencoder(grayscale_image)
-        # rgb_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2RGB)
-        # cv2.fillPoly(rgb_image, [np.array([[170,50],[240, 40],[240, 150], [210, 100], [130, 130]], np.int32)], (255,150,255))
+        if favmodeluser[1:]=="1":
+            rgb_image1 = infer_autoencoder(grayscale_image)
+        if favmodeluser[:1]=="1":
+            rgb_image2 = infer_pix2pix(grayscale_image)
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to colorize bw image {lastimageobj.filename} on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Image read error or colorize error on server.')      
 
     # write colorized image to server
-    tempcolorfilename = tempfile.NamedTemporaryFile()
+    if favmodeluser[1:]=="1":
+        tempcolorfilename1 = tempfile.NamedTemporaryFile()
+    if favmodeluser[:1] == "1":  
+        tempcolorfilename2 = tempfile.NamedTemporaryFile()
     try:
-        cv2.imwrite(f"cache{tempcolorfilename.name}.jpg", rgb_image)
+        if favmodeluser[1:] == "1":
+            cv2.imwrite(f"cache{tempcolorfilename1.name}.jpg", rgb_image1)
+        if favmodeluser[:1] == "1":  
+            cv2.imwrite(f"cache{tempcolorfilename2.name}.jpg", rgb_image2)
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to save colorized bw image {lastimageobj.filename} on server.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='File write error on server (server).')
 
      # write colorized image from server to bucket
-    s3colorfilename = f"color_{lastimageobj.user_id}_{lastimageobj.id}_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
+    if favmodeluser[1:] == "1":
+        s3colorfilename1 = f"color_{lastimageobj.user_id}_{lastimageobj.id}_autoencoder_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
+    if favmodeluser[:1] == "1":       
+        s3colorfilename2 = f"color_{lastimageobj.user_id}_{lastimageobj.id}_pix2pix_{time.strftime("%Y%m%d-%H-%M-%S")}.jpg"
 
     try:
-        s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempcolorfilename.name}.jpg",f"color_images/{s3colorfilename}")
+        if favmodeluser[1:]=="1":
+            s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempcolorfilename1.name}.jpg",f"color_images/{s3colorfilename1}")
+        if favmodeluser[:1]=="1":
+            s3client.Bucket(AWS_BUCKET_MEDIA,).upload_file(f"cache{tempcolorfilename2.name}.jpg",f"color_images/{s3colorfilename2}")
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to save colorized bw image {lastimageobj.filename} on Bucket.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='File write error on server (server->s3).')
@@ -613,28 +633,47 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
         if os.path.exists(f"cache{tempbwfilename.name}.jpg"):
             # if file writed then delete temporary file
             os.remove(f"cache{tempbwfilename.name}.jpg")
-        if os.path.exists(f"cache{tempcolorfilename.name}.jpg"):
+        if favmodeluser[1:]=="1" and os.path.exists(f"cache{tempcolorfilename1.name}.jpg"):
             # if file writed then delete temporary file
-            os.remove(f"cache{tempcolorfilename.name}.jpg")
+            os.remove(f"cache{tempcolorfilename1.name}.jpg")
+        if favmodeluser[:1]=="1" and  os.path.exists(f"cache{tempcolorfilename2.name}.jpg"):
+            # if file writed then delete temporary file
+            os.remove(f"cache{tempcolorfilename2.name}.jpg")
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to delete temporary file cache{tempbwfilename.name}.jpg on server.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Delete file error on server.')             
 
     # add colororized image ref to database
     try:
-        create_color_image_model = pixlibs.models.COLOR_Images(
-        filename=f"color_images/{s3colorfilename}",
-        user_id=user['id'],
-        bwimage_id=lastimageobj.id
-        )
-        db.add(create_color_image_model)
+        if favmodeluser[1:]=="1":
+            color_image_autoencoder = pixlibs.models.COLOR_Images(
+            filename=f"color_images/{s3colorfilename1}",
+            user_id=user['id'],
+            bwimage_id=lastimageobj.id
+            )
+            db.add(color_image_autoencoder)
+
+        if favmodeluser[:1]=="1":
+            color_image_pix2pix = pixlibs.models.COLOR_Images(
+            filename=f"color_images/{s3colorfilename2}",
+            user_id=user['id'],
+            bwimage_id=lastimageobj.id
+            )
+            db.add(color_image_pix2pix)
+
         db.commit()
     except Exception as e:
-        logger.error(format_logger(user["id"],f"failed to add color_images/{s3colorfilename} on Database.",repr(e)), exc_info=True)
+        logger.error(format_logger(user["id"],f"failed to add color_images/{s3colorfilename1} and {s3colorfilename2} on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Database write error.')        
 
     # return image
-    return {"url": f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/color_images/{s3colorfilename}"}
+    url_autoencoder = ""
+    url_pix2pix = ""
+    if favmodeluser[1:]=="1":
+        url_autoencoder = f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/color_images/{s3colorfilename1}"
+    if favmodeluser[:1]=="1":
+        url_pix2pix = f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/color_images/{s3colorfilename2}"
+    return {"url1": url_autoencoder,"url2": url_pix2pix}
 
 # get colorized images list
 @app.get('/get_colorized_images_list')
@@ -701,7 +740,7 @@ async def rate_colorized_image(user: user_dependency, db: db_dependency, id: Ann
     logger.info(format_logger(user["id"],"","Request /rate_colorized_image endpoint!"))
 
     if (id is not None) and (rating is not None):
-        if (int(rating)>=0) and (int(rating)<=10):
+        if (int(rating)>=0) and (int(rating)<=5):
             color_image = db.query(pixlibs.models.COLOR_Images).filter(and_(pixlibs.models.COLOR_Images.user_id == user["id"],pixlibs.models.COLOR_Images.id == int(id))).first() or None
             if color_image is not None:
                 try:
@@ -714,7 +753,7 @@ async def rate_colorized_image(user: user_dependency, db: db_dependency, id: Ann
                 logger.exception(format_logger(user["id"],"","Bads arguments (image id does not exist)"))
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Bads arguments (image id does not exist)")
         else:
-            logger.exception(format_logger(user["id"],"","Bads arguments (rating must between 0 and 10)"))
+            logger.exception(format_logger(user["id"],"","Bads arguments (rating must between 0 and 5)"))
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Bads arguments (rating must between 0 and 10)")
 
     else:
