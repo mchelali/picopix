@@ -33,19 +33,19 @@ services:
     volumes:
       - ./src/rd:/r_and_d
       - ./dataset/:/r_and_d/dataset
-      - ./src/models/:/r_and_d/models
+      # - ./src/models/:/r_and_d/models
       # - .env:/r_and_d/.env
     depends_on:
       - minio
     networks:
       - localhost
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1 # ou "all" pour tous les GPU
-              capabilities: [ gpu ]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1 # ou "all" pour tous les GPU
+    #           capabilities: [ gpu ]
 
   webapp:
     build:
@@ -62,23 +62,23 @@ services:
       - localhost
     depends_on:
       - api
-  
+
   minio:
     image: minio/minio
     container_name: minio
     environment:
-       MINIO_ROOT_USER: minioadmin
-       MINIO_ROOT_PASSWORD: minioadmin     
-       MINIO_ACCESS_KEY: minioadmin
-       MINIO_SECRET_KEY: minioadmin
-       MINIO_VOLUMES: /data
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_VOLUMES: /data
     volumes:
-       - ./minio_data:/data
+      - ./minio_data:/data
     ports:
-       - "9000:9000"
-       - "9001:9001"
+      - "9000:9000"
+      - "9001:9001"
     networks:
-       - localhost
+      - localhost
     command: "minio server --console-address :9001"
     restart: unless-stopped
     healthcheck:
@@ -105,17 +105,17 @@ services:
     restart: unless-stopped
 
   pdadmin:
-     image: dpage/pgadmin4
-     environment:
-       PGADMIN_DEFAULT_EMAIL: admin@admin.com
-       PGADMIN_DEFAULT_PASSWORD: pixopass
-       PGADMIN_LISTEN: 80
-     ports:
-       - "5050:80"
-     depends_on:
-       - postgres
-     networks:
-       - localhost
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: pixopass
+      PGADMIN_LISTEN: 80
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - localhost
 
 networks:
   localhost:
