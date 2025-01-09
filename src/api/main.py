@@ -28,6 +28,8 @@ from passlib.context import CryptContext
 from pixlibs.auth import get_current_user
 from pixlibs.storage_boto3 import get_storage, storageclient
 
+os.makedirs("cache/tmp", exist_ok=True)
+
 # Load .env environment variables
 load_dotenv()
 IMG_SIZE_H_MIN = os.getenv("IMG_SIZE_H_MIN")
