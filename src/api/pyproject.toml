@@ -8,6 +8,7 @@ authors = [
     "Daniel LEWANDOWSKI <lewandowski_daniel_s@yahoo.fr>",
 ]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.9"
@@ -26,6 +27,7 @@ lru-cache = "^0.2.3"
 httpx = "^0.28.0"
 pytest = "^8.3.4"
 torch = "^2.5.1"
+torchvision = "^0.20.1"
 
 [build-system]
 requires = ["poetry-core"]
