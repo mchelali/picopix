@@ -20,6 +20,7 @@ import numpy as np
 from dotenv import load_dotenv
 import logging
 from contextlib import asynccontextmanager
+
 from pixlibs.database import engine
 import pixlibs.storage_boto3
 import pixlibs.auth
@@ -27,6 +28,7 @@ from pixlibs.schemas_api import Imagerating,FavModel
 from passlib.context import CryptContext
 from pixlibs.auth import get_current_user
 from pixlibs.storage_boto3 import get_storage, storageclient
+from pixlibs.inference import infer_autoencoder, infer_pix2pix
 
 os.makedirs("cache/tmp", exist_ok=True)
 
@@ -581,8 +583,9 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
     # image colorization
     try:
         grayscale_image = cv2.imread(f"cache{tempbwfilename.name}.jpg", cv2.IMREAD_GRAYSCALE)
-        rgb_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2RGB)
-        cv2.fillPoly(rgb_image, [np.array([[170,50],[240, 40],[240, 150], [210, 100], [130, 130]], np.int32)], (255,150,255))
+        rgb_image = infer_pix2pix(grayscale_image)
+        # rgb_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2RGB)
+        # cv2.fillPoly(rgb_image, [np.array([[170,50],[240, 40],[240, 150], [210, 100], [130, 130]], np.int32)], (255,150,255))
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to colorize bw image {lastimageobj.filename} on Database.",repr(e)), exc_info=True)
         raise HTTPException(status_code=500, detail='Image read error or colorize error on server.')      

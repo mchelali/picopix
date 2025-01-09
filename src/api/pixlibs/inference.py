@@ -120,7 +120,8 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
     
     # Validate input normalization
     if not (0 <= image.min() and image.max() <= 1):
-        raise ValueError("Input image values should be normalized to the range [0, 1].")
+        print("Input image values should be normalized to the range [0, 1].")
+        image = image.astype(np.float16) / 255.
 
     # Resize and prepare the input image
     original_h, original_w = image.shape[:2]
@@ -145,7 +146,8 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
     """
     # Validate input normalization
     if not (0 <= image.min() and image.max() <= 1):
-        raise ValueError("Input image values should be normalized to the range [0, 1].")
+        print("Input image values should be normalized to the range [0, 1].")
+        image = image.astype(np.float16) / 255.
 
     # Ensure the input has 3 channels (if grayscale, repeat across channels)
     if image.ndim == 2:  # Grayscale image (H x W)
