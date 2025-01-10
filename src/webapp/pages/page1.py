@@ -1,8 +1,15 @@
+# Project PicoPix
+# Authors : Mohamed CHELALI, Daniel LEWANDOWSKI, Yannick OREAL
+# WEBAPP STREAMLIT
+
+# Declare libraries
 from navigation import make_sidebar
 import streamlit as st
 
+# display sidebar
 make_sidebar()
 
+# description
 st.write(
     """
 # 📌 Description

@@ -89,7 +89,7 @@ def test_get_user_informations(client, test_user):
 # upload valid bw image test
 def test_upload_bw_image(client, test_user):
     token = test_auth_token(client, test_user)
-    file_path = "test/test_main_valid_bw_image.jpg"
+    file_path = "tests/data/test_main_valid_bw_image.jpg"
     assert os.path.isfile(file_path), f"Test file {file_path} does not exist."
     with open(file_path, "rb") as f:
         response = client.post(
@@ -105,7 +105,7 @@ def test_upload_bw_image(client, test_user):
 # upload unvalid bw image test (color image)
 def test_upload_color_image(client, test_user):
     token = test_auth_token(client, test_user)
-    file_path = "test/test_main_unvalid_bw_image_1.jpg"
+    file_path = "tests/data/test_main_unvalid_bw_image_1.jpg"
     assert os.path.isfile(file_path), f"Test file {file_path} does not exist."
     with open(file_path, "rb") as f:
         response = client.post(
@@ -119,7 +119,7 @@ def test_upload_color_image(client, test_user):
 # upload unvalid bw image test (bad sized image)
 def test_upload_small_image(client, test_user):
     token = test_auth_token(client, test_user)
-    file_path = "test/test_main_unvalid_bw_image_2.jpg"
+    file_path = "tests/data/test_main_unvalid_bw_image_2.jpg"
     assert os.path.isfile(file_path), f"Test file {file_path} does not exist."
     with open(file_path, "rb") as f:
         response = client.post(
@@ -133,7 +133,7 @@ def test_upload_small_image(client, test_user):
 # upload unvalid bw image test (bad image format)
 def test_upload_small_image(client, test_user):
     token = test_auth_token(client, test_user)
-    file_path = "test/test_main_unvalid_bw_image_3.png"
+    file_path = "tests/data/test_main_unvalid_bw_image_3.png"
     assert os.path.isfile(file_path), f"Test file {file_path} does not exist."
     with open(file_path, "rb") as f:
         response = client.post(

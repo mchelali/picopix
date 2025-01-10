@@ -1,10 +1,17 @@
+# Project PicoPix
+# Authors : Mohamed CHELALI, Daniel LEWANDOWSKI, Yannick OREAL
+# WEBAPP STREAMLIT
+
+# Declare libraries
 from navigation import make_sidebar
 import streamlit as st
 from time import sleep
 import requests
 
+# display sidebar
 make_sidebar()
 
+# title
 st.write(
     """
 # 🧾 Préférences
@@ -12,19 +19,24 @@ st.write(
 """
 )
 
+# get favorite model with session_state variable
 favmodel = st.session_state.get("favmodel")
-favmodel_list = ["0 - aucun","1 - AutoEncoder","2 - Pix2Pix"]
 
+# display current favorite model
+favmodel_list = ["0 - aucun","1 - AutoEncoder","2 - Pix2Pix"]
 st.write(f"Modèle préféré : {favmodel_list[favmodel][4:]}")
+
+# radio control with choice 0,1,2
 modelchoice = st.radio(":rainbow[Modifier votre modèle préféré :]",
                        favmodel_list,
                        index=None,
                        )
 
+# if click validate button
 if st.button("Valider",icon="💖"):
     # Get token value
     token = st.session_state.get("token")
-    # request upload bw image endpoint
+    # request set_favorite_model endpoint
     headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}","Content-Type":"application/json"}
     data = {"mdl":int(modelchoice[:1])}
     res = requests.post(url=f"http://api:8000/set_favorite_model",headers=headers,json=data)

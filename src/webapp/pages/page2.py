@@ -1,3 +1,8 @@
+# Project PicoPix
+# Authors : Mohamed CHELALI, Daniel LEWANDOWSKI, Yannick OREAL
+# WEBAPP STREAMLIT
+
+# Declare libraries
 from navigation import make_sidebar
 import streamlit as st
 import os
@@ -6,8 +11,10 @@ import tempfile
 from PIL import Image
 from dotenv import load_dotenv
 
+# display sidebar
 make_sidebar()
 
+# title
 st.write(
     """
 # 🔮 Coloriser
@@ -51,12 +58,12 @@ if uploaded_file is not None:
             # Get token value
             token = st.session_state.get("token")
             # write file on streamlit server
+            os.makedirs("cache/tmp", exist_ok=True)
             tempfilename = f"cache{tempfile.NamedTemporaryFile().name}.jpg"
             with open(tempfilename, "wb") as f:
                     f.write(uploaded_file.getvalue())
             f.close()
             # request upload bw image endpoint
-            #headers = {"accept":"application/json","Content-Type":"multipart/form-data","Authorization":f"Bearer {token['access_token']}"}
             headers = {"Authorization":f"Bearer {token['access_token']}"}
             res = requests.post(url=f"http://api:8000/upload_bw_image",headers=headers,files=[("file",("upload.jpg",open(tempfilename, "rb"),"image/jpeg"))])
             if res.status_code==200:

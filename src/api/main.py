@@ -12,7 +12,6 @@ from typing import Annotated
 from starlette.background import BackgroundTasks
 import tempfile
 import os
-import io
 import cv2
 import time
 import numpy as np
