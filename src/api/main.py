@@ -7,13 +7,12 @@ from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, P
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import desc,asc,and_
+from sqlalchemy import and_
 from typing import Annotated
-#import torch
-#import torchvision.models as models
 from starlette.background import BackgroundTasks
 import tempfile
 import os
+import io
 import cv2
 import time
 import numpy as np
@@ -28,9 +27,7 @@ from pixlibs.schemas_api import Imagerating,FavModel
 from passlib.context import CryptContext
 from pixlibs.auth import get_current_user
 from pixlibs.storage_boto3 import get_storage, storageclient
-from pixlibs.inference import infer_autoencoder, infer_pix2pix
-
-os.makedirs("cache/tmp", exist_ok=True)
+from pixlibs.inference import infer_autoencoder, infer_pix2pix, models_list
 
 # Load .env environment variables
 load_dotenv()
@@ -55,12 +52,15 @@ def format_logger(user: int, error: str, message: str):
     else:
         return f"User: {user}\tError:{error}\tMessage: {message}" 
 
-# Etablish db connexion
+# Startup sequence
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    # create temporary folders
+    os.makedirs("cache/tmp", exist_ok=True)
     # create database structure
     pixlibs.models.Base.metadata.create_all(bind=engine)
     create_default_user()
+    update_db_models()
     yield
 
 # Declare API
@@ -111,6 +111,21 @@ def create_default_user():
             db.close()
     except Exception as e:
         logger.error(format_logger("api","Default user creation failed.",repr(e)), exc_info=True)
+
+def update_db_models():
+    db = pixlibs.database.SessionLocal() 
+    for mdl in models_list:
+        try:
+            mdlex = db.query(pixlibs.models.MODELS).filter(pixlibs.models.MODELS.filename == mdl).first() or None
+            if mdlex is None:
+                newmodel = pixlibs.models.MODELS(
+                    filename=mdl
+                )
+                db.add(newmodel)
+                db.commit()
+        except Exception as e:        
+            logger.error(format_logger("api",f"Model {mdl} database add failure.",repr(e)), exc_info=True)    
+    db.close
 
 # root endpoint
 @app.get('/')
@@ -586,9 +601,9 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
         favmodeluser=3
     # set value in binary string
     favmodeluser= str(bin(favmodeluser)[2:]).rjust(2,'0')
-    print(favmodeluser)
 
     # image colorization
+    print(models_list)
     try:
         grayscale_image = cv2.imread(f"cache{tempbwfilename.name}.jpg", cv2.IMREAD_GRAYSCALE)
         if favmodeluser[1:]=="1":
@@ -646,18 +661,26 @@ async def colorize_bw_image(user: user_dependency, db: db_dependency, s3client: 
     # add colororized image ref to database
     try:
         if favmodeluser[1:]=="1":
+            # get model id
+            last_autoencoder_model = db.query(pixlibs.models.MODELS).filter(pixlibs.models.MODELS.filename == models_list[0]).first()
+            # add image
             color_image_autoencoder = pixlibs.models.COLOR_Images(
             filename=f"color_images/{s3colorfilename1}",
             user_id=user['id'],
-            bwimage_id=lastimageobj.id
+            bwimage_id=lastimageobj.id,
+            model_id=last_autoencoder_model.id
             )
             db.add(color_image_autoencoder)
 
         if favmodeluser[:1]=="1":
+            # get model id
+            last_pix2pix_model = db.query(pixlibs.models.MODELS).filter(pixlibs.models.MODELS.filename == models_list[1]).first()
+            # add image
             color_image_pix2pix = pixlibs.models.COLOR_Images(
             filename=f"color_images/{s3colorfilename2}",
             user_id=user['id'],
-            bwimage_id=lastimageobj.id
+            bwimage_id=lastimageobj.id,
+            model_id=last_pix2pix_model.id
             )
             db.add(color_image_pix2pix)
 
@@ -707,7 +730,8 @@ async def get_colorized_images_list(user: user_dependency, db: db_dependency, s3
         imageitem = dict()
         for image in color_images:
             bw_image = db.query(pixlibs.models.BW_Images).filter(pixlibs.models.BW_Images.id == image.bwimage_id).first()
-            imageitem = {"bw_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{bw_image.filename}","colorized_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{image.filename}","rating":f"{image.rating}","creation_date":f"{image.creation_date}"}
+            imagemodel = db.query(pixlibs.models.MODELS).filter(pixlibs.models.MODELS.id == image.model_id).first()
+            imageitem = {"bw_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{bw_image.filename}","colorized_image_url":f"{AWS_ENDPOINT_URL}/{AWS_BUCKET_MEDIA}/{image.filename}","rating":f"{image.rating}","creation_date":f"{image.creation_date}","model":f"{imagemodel.filename}"}
             images_list[image.id]=imageitem
     except Exception as e:
         logger.error(format_logger(user["id"],f"failed to read color images on Database.",repr(e)), exc_info=True)

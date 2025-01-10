@@ -24,7 +24,7 @@ for img in infoimages:
         image_rating = "-"
     st.text(f"Image {img} ({image_rating})")
     st.text(f"Date : {infoimages[img]['creation_date']}")
-    st.text(f"Modèle :")
+    st.text(f"Modèle : {infoimages[img]['model']}")
     st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=60)
     images_list.append(img)
 

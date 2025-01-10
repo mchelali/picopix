@@ -188,10 +188,11 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
 
     return output_image
 
+models_list=[]
 for model_name, model in models_names.items():
 
     lastest_model = get_latest_model_uri(s3_client, model_name=model_name)
-
+    models_list.append(lastest_model)
     print(bucket_name, lastest_model)
 
     # Générer un lien présigné
