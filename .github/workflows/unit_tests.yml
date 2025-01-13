@@ -11,11 +11,14 @@ on:
 jobs:
   run-tests:
     name: Run Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       # Étape 1 : Vérifier le dépôt
-      - name: Checkout code
+      - name: Checkout code and remove unnecessary files
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         uses: actions/checkout@v4
       
       # Étape 2 : Recréer le fichier .env à partir du secret
