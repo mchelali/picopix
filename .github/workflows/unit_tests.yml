@@ -17,18 +17,22 @@ jobs:
       # Étape 1 : Vérifier le dépôt
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      # Étape 2 : Recréer le fichier .env à partir du secret
+      - name: Recreate .env from secret
+        run: echo "${{ secrets.ENV_FILE }}" > .env
 
-      # Étape 2 : Configurer Docker Compose
+      # Étape 3 : Configurer Docker Compose
       - name: Set up Docker Compose
         run: |
           docker compose --version
 
-      # Étape 3 : Démarrer les conteneurs nécessaires pour les tests
+      # Étape 4 : Démarrer les conteneurs nécessaires pour les tests
       - name: Start services
         run: |
           make start
 
-      # Étape 4 : Exécuter les tests unitaires
+      # Étape 5 : Exécuter les tests unitaires
       - name: Run tests for API
         run: |
           docker exec -it $(docker-compose ps -q api) poetry run python -m pytest 
@@ -39,6 +43,11 @@ jobs:
         run: |
           docker exec -it $(docker-compose ps -q webapp) poetry run python -m pytest 
 
-      # Étape 5 : Arrêter tous les conteneurs après les tests
+      # Étape 6 : Arrêter tous les conteneurs après les tests
       - name: Shut down services
+        if: always()
         run: make stop
+
+      # Étape 7 : Nettoyer le fichier .env
+      - name: Clean up .env file
+        run: rm -f .env
