@@ -33,6 +33,13 @@ services:
       - minio
     networks:
       - localhost
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # ou "all" pour tous les GPU
+              capabilities: [ gpu ]
 
   webapp:
     build:
