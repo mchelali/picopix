@@ -1,0 +1,44 @@
+name: Unit testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape 1 : Vérifier le dépôt
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Étape 2 : Configurer Docker Compose
+      - name: Set up Docker Compose
+        run: |
+          docker-compose --version
+
+      # Étape 3 : Démarrer les conteneurs nécessaires pour les tests
+      - name: Start services
+        run: |
+          make start
+
+      # Étape 4 : Exécuter les tests unitaires
+      - name: Run tests for API
+        run: |
+          docker exec -it $(docker-compose ps -q api) poetry run python -m pytest 
+      - name: Run tests for R&D
+        run: |
+          docker exec -it $(docker-compose ps -q r_and_d) poetry run python -m pytest 
+      - name: Run tests for WebApp
+        run: |
+          docker exec -it $(docker-compose ps -q webapp) poetry run python -m pytest 
+
+      # Étape 5 : Arrêter tous les conteneurs après les tests
+      - name: Shut down services
+        run: make stop
