@@ -21,7 +21,7 @@ jobs:
       # Étape 2 : Configurer Docker Compose
       - name: Set up Docker Compose
         run: |
-          docker-compose --version
+          docker compose --version
 
       # Étape 3 : Démarrer les conteneurs nécessaires pour les tests
       - name: Start services
