@@ -7,14 +7,19 @@ WORKDIR /api
 COPY ./src/api/pyproject.toml .
 COPY ./src/api/poetry.toml .
 # COPY ./src/api/poetry.lock .
+
 RUN pip3 install poetry==1.8.3
 RUN poetry install
+
+# Copier le reste du code
+COPY ./src/api .
+COPY .env .
 
 # Exposer le port de FastAPI
 EXPOSE 8000
 
 # Lancer l'application FastAPI
 #Pour le dev
-CMD ["tail", "-f", "/dev/null"]
+# CMD ["tail", "-f", "/dev/null"]
 #Pour la prod
-#CMD ["poetry","run","uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000","--reload"]
+CMD ["poetry","run","uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000","--reload"]

@@ -10,11 +10,16 @@ COPY ./src/webapp/poetry.toml .
 RUN pip3 install poetry==1.8.3 
 RUN poetry install
 
+
+# Copier le reste du code
+COPY ./src/webapp .
+COPY .env .
+
 # Exposer le port de Streamlit
 EXPOSE 8501
 
 # Lancer l'application Streamlit
 #Pour le dev
-CMD ["tail", "-f", "/dev/null"]
+# CMD ["tail", "-f", "/dev/null"]
 #Pour la prod
-#CMD ["poetry","run","streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["poetry","run","streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
