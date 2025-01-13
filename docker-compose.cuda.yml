@@ -27,8 +27,6 @@ services:
     ports:
       - "8002:8002"
       - "2222:22"
-    volumes:
-      - ./dataset/:/r_and_d/dataset
     depends_on:
       - minio
     networks:
