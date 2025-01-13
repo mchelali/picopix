@@ -45,6 +45,8 @@ RUN poetry install
 COPY ./src/rd .
 COPY .env .
 
+RUN poetry cache clear pypi --all
+
 # Configurer supervisord pour gérer plusieurs processus
 RUN mkdir -p /etc/supervisor/conf.d
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

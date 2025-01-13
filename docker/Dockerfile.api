@@ -15,6 +15,9 @@ RUN poetry install
 COPY ./src/api .
 COPY .env .
 
+RUN poetry cache clear pypi --all
+
+
 # Exposer le port de FastAPI
 EXPOSE 8000
 

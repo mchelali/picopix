@@ -15,6 +15,8 @@ RUN poetry install
 COPY ./src/webapp .
 COPY .env .
 
+RUN poetry cache clear pypi --all
+
 # Exposer le port de Streamlit
 EXPOSE 8501
 
