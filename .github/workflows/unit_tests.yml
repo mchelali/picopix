@@ -17,18 +17,6 @@ jobs:
       # Étape 1 : Vérifier le dépôt
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Remove unnecessary files
-        run: |
-          echo "Removing large packages"
-          # Remove specific packages or use wildcards for patterns
-          sudo apt-get remove -y dotnet-* llvm-* php* \
-            azure-cli google-cloud-sdk hhvm google-chrome-stable firefox \
-            powershell mono-devel
-          # Remove unnecessary dependencies
-          sudo apt-get autoremove -y
-          # Clean up cached package files
-          sudo apt-get clean
       
       # Étape 2 : Recréer le fichier .env à partir du secret
       - name: Recreate .env from secret
