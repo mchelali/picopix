@@ -1,4 +1,3 @@
-
 import io
 import cv2
 import numpy as np
@@ -19,10 +18,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 bucket_name = "colorisation-models"
 models_names = ["autoencoder", "pix2pix"]
 
-models_names = {
-    "autoencoder": Net(),
-    "pix2pix": GeneratorUNet()
-}
+models_names = {"autoencoder": Net(), "pix2pix": GeneratorUNet()}
 
 s3_client = get_storage_client()
 
@@ -55,7 +51,9 @@ def get_latest_model_uri(s3_client, model_name: str) -> Optional[str]:
 
         print(model_files)
         if not model_files:
-            raise ValueError(f"Aucune version trouvée pour le modèle {model_name} dans le bucket {bucket_name}.")
+            raise ValueError(
+                f"Aucune version trouvée pour le modèle {model_name} dans le bucket {bucket_name}."
+            )
 
         # Trouver la clé de la dernière version
         latest_version, latest_key = max(model_files, key=lambda x: x[0])
@@ -66,26 +64,29 @@ def get_latest_model_uri(s3_client, model_name: str) -> Optional[str]:
         return latest_key
 
     except Exception as e:
-        print(f"Erreur lors de la récupération de la dernière version du modèle {model_name}: {e}")
+        print(
+            f"Erreur lors de la récupération de la dernière version du modèle {model_name}: {e}"
+        )
         raise
+
 
 def get_presigned_url(s3_client, bucket_name, object_key, expiration=3600):
     """
     Génère un lien présigné pour un objet dans MinIO.
-    
+
     Parameters:
         s3_client: Client S3 configuré.
         bucket_name (str): Nom du bucket MinIO.
         object_key (str): Chemin de l'objet dans le bucket.
         expiration (int): Durée de validité du lien présigné en secondes (par défaut : 1 heure).
-    
+
     Returns:
         str: URL présigné permettant d'accéder à l'objet.
     """
     return s3_client.meta.client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': bucket_name, 'Key': object_key},
-        ExpiresIn=expiration
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": object_key},
+        ExpiresIn=expiration,
     )
 
 
@@ -94,6 +95,7 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
     Infers a colorized version of a grayscale image using a pre-trained autoencoder model.
 
     """
+
     def to_rgb(grayscale_input: torch.Tensor, ab_input: torch.Tensor) -> np.ndarray:
         """
         Converts grayscale and AB channels to an RGB image using the LAB color space.
@@ -119,7 +121,7 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
 
     if image is None:
         raise ValueError("Input image is None. Please check the input.")
-    
+
     # Resize and prepare the input image
     original_h, original_w = image.shape[:2]
     input_gray = cv2.resize(image, (256, 256))  # Resize to 256x256
@@ -127,9 +129,11 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
     # Validate input normalization
     if not (0 <= input_gray.min() and input_gray.max() <= 1):
         print("Input image values should be normalized to the range [0, 1].")
-        input_gray = input_gray.astype(np.float16) / 255.
+        input_gray = input_gray.astype(np.float16) / 255.0
 
-    input_gray = torch.from_numpy(input_gray).unsqueeze(0).unsqueeze(0).float().to(device)  # Shape: (1, 1, 256, 256)
+    input_gray = (
+        torch.from_numpy(input_gray).unsqueeze(0).unsqueeze(0).float().to(device)
+    )  # Shape: (1, 1, 256, 256)
 
     # Perform inference
     with torch.no_grad():  # Disable gradient calculation
@@ -137,8 +141,12 @@ def infer_autoencoder(image: np.ndarray) -> np.ndarray:
 
     # Convert to RGB and resize to original dimensions
     colored_image = to_rgb(input_gray[0].cpu(), output_ab[0].cpu())
-    colored_image = cv2.resize(colored_image, (original_w, original_h))  # Resize to original dimensions
-    colored_image = (colored_image * 255).astype(np.uint8)  # Scale to [0, 255] for visualization
+    colored_image = cv2.resize(
+        colored_image, (original_w, original_h)
+    )  # Resize to original dimensions
+    colored_image = (colored_image * 255).astype(
+        np.uint8
+    )  # Scale to [0, 255] for visualization
 
     return colored_image
 
@@ -150,7 +158,7 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
     # Validate input normalization
     if not (0 <= image.min() and image.max() <= 1):
         print("Input image values should be normalized to the range [0, 1].")
-        image = image.astype(np.float16) / 255.
+        image = image.astype(np.float16) / 255.0
 
     # Ensure the input has 3 channels (if grayscale, repeat across channels)
     if image.ndim == 2:  # Grayscale image (H x W)
@@ -168,12 +176,16 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
             transforms.ToPILImage(),  # Convert to PIL image
             transforms.Resize((256, 256)),  # Resize to 256x256
             transforms.ToTensor(),  # Convert to tensor
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),  # Normalize to [-1, 1]
+            transforms.Normalize(
+                (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
+            ),  # Normalize to [-1, 1]
         ]
     )
 
     # Apply preprocessing
-    input_tensor = preprocess((image * 255).astype(np.uint8)).unsqueeze(0).to(device)  # Add batch dimension
+    input_tensor = (
+        preprocess((image * 255).astype(np.uint8)).unsqueeze(0).to(device)
+    )  # Add batch dimension
 
     # Perform inference
     model.eval()  # Ensure the model is in evaluation mode
@@ -181,14 +193,21 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
         output_tensor = model(input_tensor)  # Output tensor, shape: (1, 3, 256, 256)
 
     # Post-process the output
-    output_image = output_tensor.squeeze(0).cpu().numpy().transpose(1, 2, 0)  # Shape: (256, 256, 3)
-    output_image = (output_image * 0.5 + 0.5)  # De-normalize to [0, 1]
-    output_image = cv2.resize(output_image, (original_w, original_h))  # Resize to original dimensions
-    output_image = (output_image * 255).astype(np.uint8)  # Scale to [0, 255] for visualization
+    output_image = (
+        output_tensor.squeeze(0).cpu().numpy().transpose(1, 2, 0)
+    )  # Shape: (256, 256, 3)
+    output_image = output_image * 0.5 + 0.5  # De-normalize to [0, 1]
+    output_image = cv2.resize(
+        output_image, (original_w, original_h)
+    )  # Resize to original dimensions
+    output_image = (output_image * 255).astype(
+        np.uint8
+    )  # Scale to [0, 255] for visualization
 
     return output_image
 
-models_list=[]
+
+models_list = []
 for model_name, model in models_names.items():
 
     lastest_model = get_latest_model_uri(s3_client, model_name=model_name)
@@ -203,14 +222,18 @@ for model_name, model in models_names.items():
     if response.status_code == 200:
         # Charger les données dans un buffer
         buffer = io.BytesIO(response.content)
-        
+
         # Charger les poids dans un dictionnaire d'état
         state_dict = torch.load(buffer, map_location="cpu", weights_only=False)
-        
+
         # Charger les poids dans le modèle
         model.load_state_dict(state_dict)
         model.to(device)
         model.eval()
-        print(f"Le modèle {model_name} a été chargé avec succès depuis {presigned_url}.")
+        print(
+            f"Le modèle {model_name} a été chargé avec succès depuis {presigned_url}."
+        )
     else:
-        print(f"Impossible de télécharger le modèle {model_name}. Code HTTP : {response.status_code}")
+        print(
+            f"Impossible de télécharger le modèle {model_name}. Code HTTP : {response.status_code}"
+        )
