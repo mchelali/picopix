@@ -30,8 +30,8 @@ jobs:
       # Étape 4 : Démarrer les conteneurs nécessaires pour les tests
       - name: Start services
         run: |
-          docker-compose up -d postgres minio
-          docker-compose up -d r_and_d
+          docker compose up -d postgres minio
+          docker compose up -d r_and_d
 
       # Étape 5 : Exécuter les tests unitaires
       - name: Run tests for R&D
