@@ -9,6 +9,7 @@ COPY ./src/api/poetry.toml .
 # COPY ./src/api/poetry.lock .
 
 RUN pip3 install poetry==1.8.3
+ENV POETRY_HTTP_TIMEOUT=3200
 RUN poetry install
 
 # Copier le reste du code

@@ -8,7 +8,7 @@ COPY ./src/webapp/pyproject.toml .
 COPY ./src/webapp/poetry.toml .
 # COPY ./src/webapp/poetry.lock .
 RUN pip3 install poetry==1.8.3 
-RUN poetry install
+RUN POETRY_HTTP_TIMEOUT=1200 poetry install
 
 
 # Copier le reste du code

@@ -39,7 +39,10 @@ COPY ./src/rd/poetry.toml .
 
 # RUN chown -R ssh_user:ssh_user /r_and_d
 # RUN pip install -r requirements.txt
+ENV POETRY_HTTP_TIMEOUT=3200
 RUN poetry install
+
+RUN poetry cache clear pypi --all
 
 # Copier le reste du code
 COPY ./src/rd .
