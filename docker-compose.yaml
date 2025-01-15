@@ -54,8 +54,8 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_VOLUMES: /data
-    # volumes:
-    #   - ./minio_data:/data
+    volumes:
+      - ./minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"

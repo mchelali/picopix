@@ -16,4 +16,3 @@ DATABASE_URL = f"postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_
 # engine & session declaration
 engine = create_engine(DATABASE_URL, connect_args={})
 SessionLocal = sessionmaker(bind=engine)
-
