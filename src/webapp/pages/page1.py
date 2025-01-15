@@ -10,10 +10,9 @@ import streamlit as st
 make_sidebar()
 
 # description
+st.title("📌 Description")
 st.write(
     """
-# 📌 Description
-
 Cette application permet de coloriser vos images en noir et blanc en utilisant deux algorithmes 
 d'intelligence artificielle différents (Pix2Pix ). Vous pourrez comparer les résultats et choisir votre
 algorithme préféré pour vous colorisations.

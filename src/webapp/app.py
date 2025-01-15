@@ -21,6 +21,14 @@ firstname = st.text_input("Firstname (optional)")
 lastname = st.text_input("Lastname (optional)")
 password = st.text_input("Password (required for log in)", type="password")
 
+# init session_state
+if "logged_in" not in st.session_state:
+      st.session_state["logged_in"] = None
+if "user" not in st.session_state:
+      st.session_state["user"] = None
+if "token" not in st.session_state:
+      st.session_state["token"] = None
+
 # if click button log in
 if st.button("Log in", type="primary"):
     # request token api endpoint 

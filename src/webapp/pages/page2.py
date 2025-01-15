@@ -15,12 +15,7 @@ from dotenv import load_dotenv
 make_sidebar()
 
 # title
-st.write(
-    """
-# 🔮 Coloriser
-
-"""
-)
+st.title("🔮 Coloriser")
 
 # Load .env environment variables
 load_dotenv()

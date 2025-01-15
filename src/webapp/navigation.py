@@ -33,6 +33,7 @@ def make_sidebar():
             st.session_state.favmodel = infouser['favorite_model']
             # display pages
             st.markdown(f"Utilisateur : {infouser['firstname']} {infouser['lastname']}")
+            st.markdown(f"{token}")
             st.page_link("pages/page1.py", label="Description", icon="📌")
             st.page_link("pages/page2.py", label="Coloriser", icon="🔮")
             st.page_link("pages/page3.py", label="Images colorisées", icon="👀")

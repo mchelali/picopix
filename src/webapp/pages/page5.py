@@ -12,12 +12,7 @@ import requests
 make_sidebar()
 
 # title
-st.write(
-    """
-# 🔓 Administration
-
-"""
-)
+st.title("🔓 Administration")
 
 # get & display users list with automatic refresh
 @st.fragment(run_every="10s")

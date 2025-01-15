@@ -12,12 +12,7 @@ import requests
 make_sidebar()
 
 # title
-st.write(
-    """
-# 🧾 Préférences
-
-"""
-)
+st.title("🧾 Préférences")
 
 # get favorite model with session_state variable
 favmodel = st.session_state.get("favmodel")

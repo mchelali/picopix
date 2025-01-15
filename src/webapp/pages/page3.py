@@ -13,12 +13,7 @@ import streamlit as st
 make_sidebar()
 
 # title
-st.write(
-    """
-# 👀 Images colorisées
-
-"""
-)
+st.title("👀 Images colorisées")
 
 # request get_colorized_images_list endpoint
 token = st.session_state.get("token")
