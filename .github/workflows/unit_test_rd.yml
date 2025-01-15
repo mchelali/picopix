@@ -36,7 +36,7 @@ jobs:
       # Étape 5 : Exécuter les tests unitaires
       - name: Run tests for R&D
         run: |
-          docker exec -it $(docker-compose ps -q r_and_d) poetry run python -m pytest 
+          docker exec -it $(docker compose ps -q r_and_d) poetry run python -m pytest 
      
       # Étape 6 : Arrêter tous les conteneurs après les tests
       - name: Shut down services
