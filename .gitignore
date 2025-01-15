@@ -2,6 +2,7 @@ poetry.lock
 .DS_Store
 minio_data/
 cache
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
