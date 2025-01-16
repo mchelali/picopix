@@ -22,20 +22,20 @@ jobs:
       - name: Recreate .env from secret
         run: echo "${{ secrets.ENV_FILE }}" > .env
       
-      - name: Generate MinIO Keys
-        id: generate-keys
-        run: |
-            AWS_ACCESS_KEY_ID=$(openssl rand -hex 12)
-            AWS_SECRET_ACCESS_KEY=$(openssl rand -hex 24)
+      # - name: Generate MinIO Keys
+      #   id: generate-keys
+      #   run: |
+      #       AWS_ACCESS_KEY_ID=$(openssl rand -hex 12)
+      #       AWS_SECRET_ACCESS_KEY=$(openssl rand -hex 24)
 
-            # Append them to the .env file for container use
-            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> .env
-            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> .env
+      #       # Append them to the .env file for container use
+      #       echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> .env
+      #       echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> .env
 
-            # Export them for later steps
-            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
-            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
-        shell: bash
+      #       # Export them for later steps
+      #       echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
+      #       echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
+      #   shell: bash
 
       # Étape 3 : Configurer Docker Compose
       - name: Set up Docker Compose
