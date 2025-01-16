@@ -18,6 +18,7 @@ import numpy as np
 from dotenv import load_dotenv
 import logging
 from contextlib import asynccontextmanager
+import botocore
 
 from pixlibs.database import engine
 import pixlibs.storage_boto3
@@ -108,6 +109,22 @@ user_dependency = Annotated[
 storage_dependency = Annotated[
     storageclient, Depends(get_storage)
 ]  # storage access is ok
+
+bucket_name = "picopix"
+try:
+    # Vérifie si le bucket existe
+    storage_dependency.meta.client.head_bucket(Bucket=bucket_name)
+    print(f"Bucket '{bucket_name}' already exists.")
+except botocore.exceptions.ClientError as e:
+    # Si le bucket n'existe pas, créez-le
+    if e.response["Error"]["Code"] == "404":
+        try:
+            storage_dependency.create_bucket(Bucket=bucket_name)
+            print(f"Bucket '{bucket_name}' created successfully.")
+        except Exception as creation_error:
+            print(f"Error creating bucket '{bucket_name}': {creation_error}")
+    else:
+        print(f"Error accessing bucket '{bucket_name}': {e}")
 
 # DB default user creation function
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
