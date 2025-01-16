@@ -21,6 +21,13 @@ jobs:
       # Étape 2 : Recréer le fichier .env à partir du secret
       - name: Recreate .env from secret
         run: echo "${{ secrets.ENV_FILE }}" > .env
+      
+      - name: Generate MinIO Keys
+        id: generate-keys
+        run: |
+          echo "AWS_ACCESS_KEY_ID=$(openssl rand -hex 12)" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=$(openssl rand -hex 24)" >> .env
+        shell: bash
 
       # Étape 3 : Configurer Docker Compose
       - name: Set up Docker Compose
