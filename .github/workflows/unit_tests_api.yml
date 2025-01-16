@@ -22,17 +22,20 @@ jobs:
       - name: Recreate .env from secret
         run: echo "${{ secrets.ENV_FILE }}" > .env
       
-      
-      
       - name: Generate MinIO Keys
         id: generate-keys
         run: |
-          echo "AWS_ACCESS_KEY_ID=$(openssl rand -hex 12)" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=$(openssl rand -hex 24)" >> .env
-        shell: bash
+            AWS_ACCESS_KEY_ID=$(openssl rand -hex 12)
+            AWS_SECRET_ACCESS_KEY=$(openssl rand -hex 24)
 
-      - name: Recreate .env from secret
-        run: cat .env
+            # Append them to the .env file for container use
+            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> .env
+            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> .env
+
+            # Export them for later steps
+            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
+        shell: bash
 
       # Étape 3 : Configurer Docker Compose
       - name: Set up Docker Compose
@@ -40,20 +43,20 @@ jobs:
           docker compose --version
 
       # Étape 4 : Démarrer les conteneurs nécessaires pour les tests
-      # - name: Start services
-      #   run: |
-      #     docker compose up -d postgres minio
-      #     docker compose up -d api
+      - name: Start services
+        run: |
+          docker compose up -d postgres minio
+          docker compose up -d api
 
       # # Étape 5 : Exécuter les tests unitaires
-      # - name: Run tests for API
-      #   run: |
-      #     docker exec $(docker compose ps -q api) poetry run python -m pytest 
+      - name: Run tests for API
+        run: |
+          docker exec $(docker compose ps -q api) poetry run python -m pytest 
       
       # # Étape 6 : Arrêter tous les conteneurs après les tests
-      # - name: Shut down services
-      #   if: always()
-      #   run: make stop
+      - name: Shut down services
+        if: always()
+        run: make stop
 
       # Étape 7 : Nettoyer le fichier .env
       - name: Clean up .env file
