@@ -22,7 +22,24 @@ models_names = {"autoencoder": Net(), "pix2pix": GeneratorUNet()}
 
 s3_client = get_storage_client()
 
+def check_bucket_exists(s3_client, bucket_name: str) -> bool:
+    """
+    Checks if a bucket exists in MinIO.
 
+    Parameters:
+        s3_client: S3 client.
+        bucket_name (str): Name of the bucket.
+
+    Returns:
+        bool: True if the bucket exists, False otherwise.
+    """
+    try:
+        s3_client.meta.client.head_bucket(Bucket=bucket_name)
+        return True
+    except Exception as e:
+        print(f"Bucket '{bucket_name}' does not exist or is inaccessible: {e}")
+        return False
+    
 def get_latest_model_uri(s3_client, model_name: str) -> Optional[str]:
     """
     Récupère l'URI de la dernière version d'un modèle dans un bucket MinIO.
@@ -206,37 +223,39 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
 
     return output_image
 
+if check_bucket_exists(s3_client, bucket_name):
+    models_list = []
+    for model_name, model in models_names.items():
 
-models_list = []
-for model_name, model in models_names.items():
+        lastest_model = get_latest_model_uri(s3_client, model_name=model_name)
+        if len(lastest_model) == 0 or lastest_model is None:
+            continue
 
-    lastest_model = get_latest_model_uri(s3_client, model_name=model_name)
-    if len(lastest_model) == 0 or lastest_model is None:
-        continue
+        models_list.append(lastest_model)
+        print(bucket_name, lastest_model)
 
-    models_list.append(lastest_model)
-    print(bucket_name, lastest_model)
+        # Générer un lien présigné
+        presigned_url = get_presigned_url(s3_client, bucket_name, lastest_model)
 
-    # Générer un lien présigné
-    presigned_url = get_presigned_url(s3_client, bucket_name, lastest_model)
+        # Télécharger les poids en mémoire via le lien présigné
+        response = requests.get(presigned_url, stream=True)
+        if response.status_code == 200:
+            # Charger les données dans un buffer
+            buffer = io.BytesIO(response.content)
 
-    # Télécharger les poids en mémoire via le lien présigné
-    response = requests.get(presigned_url, stream=True)
-    if response.status_code == 200:
-        # Charger les données dans un buffer
-        buffer = io.BytesIO(response.content)
+            # Charger les poids dans un dictionnaire d'état
+            state_dict = torch.load(buffer, map_location="cpu", weights_only=False)
 
-        # Charger les poids dans un dictionnaire d'état
-        state_dict = torch.load(buffer, map_location="cpu", weights_only=False)
-
-        # Charger les poids dans le modèle
-        model.load_state_dict(state_dict)
-        model.to(device)
-        model.eval()
-        print(
-            f"Le modèle {model_name} a été chargé avec succès depuis {presigned_url}."
-        )
-    else:
-        print(
-            f"Impossible de télécharger le modèle {model_name}. Code HTTP : {response.status_code}"
-        )
+            # Charger les poids dans le modèle
+            model.load_state_dict(state_dict)
+            model.to(device)
+            model.eval()
+            print(
+                f"Le modèle {model_name} a été chargé avec succès depuis {presigned_url}."
+            )
+        else:
+            print(
+                f"Impossible de télécharger le modèle {model_name}. Code HTTP : {response.status_code}"
+            )
+else:
+    print(f"Bucket '{bucket_name}' does not exist. No models were loaded.")
