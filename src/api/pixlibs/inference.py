@@ -16,7 +16,6 @@ from pixlibs.storage_boto3 import get_storage_client
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 bucket_name = "colorisation-models"
-models_names = ["autoencoder", "pix2pix"]
 
 models_names = {"autoencoder": Net(), "pix2pix": GeneratorUNet()}
 
@@ -205,9 +204,8 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
     )  # Add batch dimension
 
     # Perform inference
-    model.eval()  # Ensure the model is in evaluation mode
     with torch.no_grad():
-        output_tensor = model(input_tensor)  # Output tensor, shape: (1, 3, 256, 256)
+        output_tensor = models_names["pix2pix"](input_tensor)  # Output tensor, shape: (1, 3, 256, 256)
 
     # Post-process the output
     output_image = (
@@ -224,6 +222,7 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
     return output_image
 
 if check_bucket_exists(s3_client, bucket_name):
+    print(f"The bucket: {bucket_name} exists")
     models_list = []
     for model_name, model in models_names.items():
 
@@ -258,4 +257,5 @@ if check_bucket_exists(s3_client, bucket_name):
                 f"Impossible de télécharger le modèle {model_name}. Code HTTP : {response.status_code}"
             )
 else:
+    models_list = list(models_names.keys())
     print(f"Bucket '{bucket_name}' does not exist. No models were loaded.")
