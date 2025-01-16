@@ -38,6 +38,15 @@ def check_bucket_exists(s3_client, bucket_name: str) -> bool:
     except Exception as e:
         print(f"Bucket '{bucket_name}' does not exist or is inaccessible: {e}")
         return False
+
+def check_bucket_not_empty(s3_client, bucket_name: str) -> bool:
+    try:
+        bucket = s3_client.Bucket(bucket_name)
+        objects = list(bucket.objects.all())
+        return len(objects) > 0
+    except Exception as e:
+        print(f"Failed to check bucket content: {e}")
+        return False
     
 def get_latest_model_uri(s3_client, model_name: str) -> Optional[str]:
     """
@@ -221,17 +230,18 @@ def infer_pix2pix(image: np.ndarray) -> np.ndarray:
 
     return output_image
 
-if check_bucket_exists(s3_client, bucket_name):
+if check_bucket_exists(s3_client, bucket_name) and check_bucket_not_empty(s3_client, bucket_name):
     print(f"The bucket: {bucket_name} exists")
     models_list = []
     for model_name, model in models_names.items():
 
         lastest_model = get_latest_model_uri(s3_client, model_name=model_name)
-        if len(lastest_model) == 0 or lastest_model is None:
-            continue
+        if lastest_model is None:
+            model.to(device)  # Ensure the untrained model is moved to the correct device
+            model.eval()
 
-        models_list.append(lastest_model)
-        print(bucket_name, lastest_model)
+            models_list.append(lastest_model)
+            continue
 
         # Générer un lien présigné
         presigned_url = get_presigned_url(s3_client, bucket_name, lastest_model)
@@ -259,3 +269,6 @@ if check_bucket_exists(s3_client, bucket_name):
 else:
     models_list = list(models_names.keys())
     print(f"Bucket '{bucket_name}' does not exist. No models were loaded.")
+    for model in models_names.values():
+        model.to(device)
+        model.eval()
