@@ -5,8 +5,17 @@
 # Declare libraries
 from navigation import make_sidebar
 import streamlit as st
+from PIL import Image
 from time import sleep
 import requests
+
+# Configuration de la page
+im = Image.open("assets/images/logo.ico")
+st.set_page_config(
+    page_title="PicoPix - Préférences",
+    page_icon=im,
+    layout="wide",
+)
 
 # display sidebar
 make_sidebar()
@@ -22,10 +31,10 @@ favmodel_list = ["0 - aucun","1 - AutoEncoder","2 - Pix2Pix"]
 st.write(f"Modèle préféré : {favmodel_list[favmodel][4:]}")
 
 # radio control with choice 0,1,2
-modelchoice = st.radio(":rainbow[Modifier votre modèle préféré :]",
-                       favmodel_list,
-                       index=None,
-                       )
+modelchoice = st.radio(
+    ":rainbow[Modifier votre modèle préféré :]",
+    favmodel_list,
+)
 
 # if click validate button
 if st.button("Valider",icon="💖"):

@@ -9,6 +9,14 @@ import requests
 from PIL import Image
 import streamlit as st
 
+# Configuration de la page
+im = Image.open("assets/images/logo.ico")
+st.set_page_config(
+    page_title="PicoPix - Images colorisées",
+    page_icon=im,
+    layout="wide",
+)
+
 # display sidebar
 make_sidebar()
 
@@ -23,21 +31,34 @@ infoimages = res.json()
 images_list = []
 
 # display images & images properties
+tab1, tab2 = st.tabs(["Autoencoder", "Pix2Pix"])
 for img in infoimages:
+    imgmdl = infoimages[img]['model'].split("/")[0]
     if infoimages[img]['rating']!="None":
-        image_rating = int(infoimages[img]['rating'])*"🌟"
+        image_rating = int(infoimages[img]['rating'])*"⭐"
     else:
         image_rating = "-"
-    st.divider()
-    cols = st.columns(2)
-    cols[0].image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=256)
-    cols[1].text(f"Image {img} ({image_rating})")
-    cols[1].text(f"Date : {infoimages[img]['creation_date']}")
-    cols[1].text(f"Modèle : {infoimages[img]['model']}")
+    with tab1:
+        col1,col2 = st.columns(2)
+        if imgmdl=="autoencoder":
+            st.divider()
+            with col1:
+                st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=256)
+            with col2:
+                st.text(f"Image {img} ({image_rating})")
+                st.text(f"Date : {infoimages[img]['creation_date']}")
+                st.text(f"Modèle : {infoimages[img]['model']}")
+    with tab2:
+        col1,col2 = st.columns(2)
+        if imgmdl=="pix2pix":
+            st.divider()
+            with col1:
+                st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=256)
+            with col2:
+                st.text(f"Image {img} ({image_rating})")
+                st.text(f"Date : {infoimages[img]['creation_date']}")
+                st.text(f"Modèle : {infoimages[img]['model']}")
     images_list.append(img)
-
-st.write("")
-st.write("")
 
 # rating form
 st.markdown(":rainbow[Notation]")

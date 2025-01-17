@@ -5,8 +5,16 @@
 # Declare libraries
 import streamlit as st
 from time import sleep
+from PIL import Image
 import requests
 from navigation import make_sidebar
+
+im = Image.open("assets/images/logo.ico")
+st.set_page_config(
+    page_title="PicoPix - Description",
+    page_icon=im,
+    layout="wide",
+)
 
 # call sidebar generator
 make_sidebar()
