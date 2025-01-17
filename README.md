@@ -65,7 +65,7 @@ cd picopix/
 make start
 ```
 
-Pour lancer les conteneurs avec la prise en consédiration de cuda
+Pour lancer les conteneurs avec la prise en charge de cuda
 ```bash
 make custart
 ```
