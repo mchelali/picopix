@@ -8,7 +8,7 @@
 </div>
 
 
-Colorisation d'images est un probleme auquel est confrenté  la caumunauté de vision par ordinateur. Ce projet implémente 2 méthodes de l'état de l'art pour la résolution de cette problématiques avec un structure MLOps complète pour la gestion et maintenance de l'application et l'amélioration des modèles utilisés. 
+La colorisation d'images est un probleme auquel est confronté la communauté de vision par ordinateur. Ce projet implémente 2 méthodes de l'état de l'art pour la résolution de cette problématique avec un structure MLOps complète pour la gestion et maintenance de l'application et l'amélioration des modèles utilisés. 
 
 
 ## Structure du projet
@@ -16,13 +16,13 @@ Colorisation d'images est un probleme auquel est confrenté  la caumunauté de v
 ```bash
 .
 ├── Makefile                    <--- racourcie des commandes docker pour le lancemant des conteneur
-├── README.md                   <--- Présentation du peojet
+├── README.md                   <--- Présentation du projet
 ├── dataset
 │   ├── README.md               <--- Présentation de la basse de données initiale
 │   ├── dataset_preparation.sh  <--- Script de préparation de la base de donnée initiale 
 ├── docker                      <--- Dossier des fichier de configuration Docker
 │   └── ....
-├── docker-compose.dev.yaml     <--- Composition des dockers de dévellopement
+├── docker-compose.dev.yaml     <--- Composition des dockers de développement
 ├── docker-compose.cuda.yaml    <--- Composition des dockers de production avec prise en charge de GPU
 ├── docker-compose.yaml         <--- Composition des dockers de production
 ├── references                  <--- dossier de documentation
@@ -56,7 +56,7 @@ Colorisation d'images est un probleme auquel est confrenté  la caumunauté de v
 
 
 ## Utilisation
-Pour lancer tous les conteneur en loacal, il vous suffit de clounner le répertoire et lancer les conteneurs. les commandes suivantes illustre ceci :
+Pour lancer tous les conteneurs en local, il vous suffit de clôner le répertoire et lancer les conteneurs. les commandes suivantes illustrent ceci :
 
 ___Note : Avant de lancer les conteneurs, veuillez créer le fichier `.env` à base du template fournit dans le répertoire.___
 ```bash
@@ -70,14 +70,14 @@ Pour lancer les conteneurs avec la prise en consédiration de cuda
 make custart
 ```
 
-Si vous exécutez ce code sur votre machine personnel, veuillez utiliser les urls suivantes pour accéder au différents services proposés :
+Si vous exécutez ce code sur votre machine personnelle, veuillez utiliser les urls suivantes pour accéder aux différents services proposés :
 
 * R&D : http://localhost:8002
 * MinIO : http://localhost:9001
 * Streamlit : http://localhost:8501
 * PgAdmin : http://localhost:5050
 
-Pour stoper les conteneurs
+Pour stopper les conteneurs
 ```bash
 make stop
 ```
