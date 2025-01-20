@@ -5,6 +5,8 @@
 # Declare libraries
 import streamlit as st
 from time import sleep
+import base64
+from pathlib import Path
 import requests
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit.source_util import get_pages
@@ -19,10 +21,24 @@ def get_current_page_name():
 
     return pages[ctx.page_script_hash]["page_name"]
 
+# transform img to bytes
+def img_to_bytes(img_path):
+    img_bytes = Path(img_path).read_bytes()
+    encoded = base64.b64encode(img_bytes).decode()
+    return encoded
+
+# transform image to html balise
+def img_to_html(img_path):
+    img_html = "<img src='data:image/png;base64,{}' class='img-fluid'>".format(
+      img_to_bytes(img_path)
+    )
+    return img_html
+
 # sidebar generator function
 def make_sidebar():
     with st.sidebar:
-        st.title("🎨 PicoPix")
+        st.markdown("<p style='text-align: center; color: grey;'>"+img_to_html('./assets/images/logo.png')+"</p>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center'>Picopix</h1>",unsafe_allow_html=True)
         if st.session_state.get("logged_in", False):
             # request get_user_informations api endpoint 
             token = st.session_state.get("token")

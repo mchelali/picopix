@@ -5,19 +5,24 @@
 # Declare libraries
 from navigation import make_sidebar
 import streamlit as st
+from PIL import Image
 from time import sleep
 import requests
+import pandas as pd
+
+# Configuration de la page
+im = Image.open("assets/images/logo.ico")
+st.set_page_config(
+    page_title="PicoPix - Administration",
+    page_icon=im,
+    layout="wide",
+)
 
 # display sidebar
 make_sidebar()
 
 # title
-st.write(
-    """
-# 🔓 Administration
-
-"""
-)
+st.title("🔓 Administration")
 
 # get & display users list with automatic refresh
 @st.fragment(run_every="10s")
@@ -27,19 +32,27 @@ def list_users():
     headers = {"accept":"application/json","Authorization":f"Bearer {token['access_token']}"}
     res = requests.get(url="http://api:8000/get_users_list",headers=headers)
     infousers = res.json()
+    df = pd.DataFrame(columns=["Utilisateur","Prenom","Nom","Statut","Rôle"])
     # construct users list
     users_list=[]
+    i = 0
     for user in infousers:
         users_list.append(user)
         if infousers[user]['disabled'] == True:
-            statut= "❌:red[compte désactivé]"
+            #statut= "❌:red[compte désactivé]"
+            statut = "❌compte désactivé"
         else:
-            statut= "✅:green[compte activé]"
+            #statut= "✅:green[compte activé]"
+            statut = "✅compte activé"
         if infousers[user]['isadmin'] == True:
-            adminlogo = "🔑 :orange[administrateur]"
+            #adminlogo = "🔑 :orange[administrateur]"
+            adminlogo = "🔑 administrateur"
         else:
-            adminlogo = ""
-        st.markdown(f":blue[{user}] ({infousers[user]['firstname']} {infousers[user]['lastname']}) {adminlogo} {statut}")
+            adminlogo = "utilisateur"
+        df.loc[i] = [user,infousers[user]['firstname'],infousers[user]['lastname'],statut,adminlogo]
+        i = i+1
+        #st.markdown(f":blue[{user}] ({infousers[user]['firstname']} {infousers[user]['lastname']}) {adminlogo} {statut}")
+    st.dataframe(df,hide_index=True)
     return users_list
 
 # display users list
