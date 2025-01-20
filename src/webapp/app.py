@@ -11,7 +11,7 @@ from navigation import make_sidebar
 
 im = Image.open("assets/images/logo.ico")
 st.set_page_config(
-    page_title="PicoPix - Description",
+    page_title="PicoPix",
     page_icon=im,
     layout="wide",
 )
