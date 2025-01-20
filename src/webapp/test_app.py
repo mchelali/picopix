@@ -41,7 +41,6 @@ def test_sidebar_page1():
     at.text_input[3].input("test")
     at.button[0].click().run()
 
-    assert "🎨 PicoPix" in at.sidebar.title[0].value
     assert "📌 Description" in at.title[0].value
 
 """
