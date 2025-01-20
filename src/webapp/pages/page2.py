@@ -42,17 +42,24 @@ with st.expander("Spécifications de l'image"):
     - Dimensions: entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels
     - Taille maximale: {IMG_SIZE_KB_MAX} Ko
     - L'image doit être en noir et blanc
-    """)
+    """
+)
 
 # Upload control zone
-uploaded_file = st.file_uploader("Choisissez une image en noir et blanc", type=['jpg', 'jpeg'], accept_multiple_files=False,)
+uploaded_file = st.file_uploader(
+    "Choisissez une image en noir et blanc",
+    type=["jpg", "jpeg"],
+    accept_multiple_files=False,
+)
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    
+
     # Check image height & width
     if not (512 <= image.size[0] <= 2024 and 512 <= image.size[1] <= 2024):
-        st.error(f"Les dimensions de l'image doivent être entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels")
+        st.error(
+            f"Les dimensions de l'image doivent être entre {IMG_SIZE_H_MIN}x{IMG_SIZE_W_MIN} et {IMG_SIZE_H_MAX}x{IMG_SIZE_W_MAX} pixels"
+        )
     else:
         # Display image
         col1, col2, col3 = st.columns(3)

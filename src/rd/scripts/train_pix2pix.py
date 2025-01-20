@@ -312,7 +312,7 @@ if __name__ == "__main__":
 
                 epoch_valid_loss = epoch_valid_loss / len(val_dataloader)
             mlflow.log_metric("val_loss_G", epoch_valid_loss, step=epoch)
-        
+
             if epoch_valid_loss > vald_loss:
                 print(f"---> Early stopping criterion {patience}/{args.early_stop}")
                 patience += 1
