@@ -239,9 +239,9 @@ if check_bucket_exists(s3_client, bucket_name) and check_bucket_not_empty(s3_cli
         if lastest_model is None:
             model.to(device)  # Ensure the untrained model is moved to the correct device
             model.eval()
-
-            models_list.append(lastest_model)
             continue
+
+        models_list.append(lastest_model)
 
         # Générer un lien présigné
         presigned_url = get_presigned_url(s3_client, bucket_name, lastest_model)
@@ -272,3 +272,5 @@ else:
     for model in models_names.values():
         model.to(device)
         model.eval()
+
+print(f"modeles:{models_list}")
