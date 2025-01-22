@@ -34,12 +34,26 @@ res = requests.get(url="http://api:8000/get_colorized_images_list", headers=head
 infoimages = res.json()
 images_list = []
 
+def star_rating(label, key):
+    rating = st.slider(label, min_value=0, max_value=5, value=0, key=key)
+    stars = "★" * rating + "☆" * (5 - rating)
+    st.markdown(f"""
+    <style>
+        .rating {{
+            font-size: 24px;
+            color: gold;
+        }}
+    </style>
+    <div class="rating">{stars}</div>
+    """, unsafe_allow_html=True)
+    return rating
+
 # display images & images properties
 tab1, tab2 = st.tabs(["Autoencoder", "Pix2Pix"])
 for img in infoimages:
     imgmdl = infoimages[img]['model'].split("/")[0]
     if infoimages[img]['rating']!="None":
-        image_rating = int(infoimages[img]['rating'])*"⭐"
+        image_rating = int(infoimages[img]['rating'])*"★" + (5-int(infoimages[img]['rating']))*"☆"
     else:
         image_rating = "-"
     with tab1:
@@ -49,7 +63,16 @@ for img in infoimages:
             with col1:
                 st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=256)
             with col2:
-                st.text(f"Image {img} ({image_rating})")
+                st.text(f"Image {img}")
+                st.markdown(f"""Note :
+                    <style>
+                        .rating {{
+                            font-size: 24px;
+                            color: gold;
+                        }}
+                    </style>
+                    <div class="rating">{image_rating}</div>
+                    """,unsafe_allow_html=True)
                 st.text(f"Date : {infoimages[img]['creation_date']}")
                 st.text(f"Modèle : {infoimages[img]['model']}")
     with tab2:
@@ -59,7 +82,16 @@ for img in infoimages:
             with col1:
                 st.image(Image.open(requests.get(f"{infoimages[img]['colorized_image_url']}",stream=True).raw),width=256)
             with col2:
-                st.text(f"Image {img} ({image_rating})")
+                st.text(f"Image {img}")
+                st.markdown(f"""Note :
+                    <style>
+                        .rating {{
+                            font-size: 24px;
+                            color: gold;
+                        }}
+                    </style>
+                    <div class="rating">{image_rating}</div>
+                    """, unsafe_allow_html=True)
                 st.text(f"Date : {infoimages[img]['creation_date']}")
                 st.text(f"Modèle : {infoimages[img]['model']}")
     images_list.append(img)
@@ -69,9 +101,10 @@ st.markdown(":rainbow[Notation]")
 # images id
 rateimage = st.selectbox("Image", (images_list))
 # rating control
-rate = st.number_input("Note (0 à 10)", min_value=0, max_value=5, value=2, step=1)
+rate = star_rating("Note (de 0 à 5 étoiles)", "rating_key")
+#rate = st.number_input("Note (0 à 5)", min_value=0, max_value=5, value=2, step=1)
 # if click rating button
-if st.button("Noter", icon="🥇"):
+if st.button("Noter)", icon="🥇"):
     # request rate_colorized_image endpoint
     headers = {
         "accept": "application/json",
