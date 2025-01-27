@@ -16,9 +16,9 @@ def to_rgb(grayscale_input, ab_input):
     color_image = torch.cat((grayscale_input, ab_input), 0).numpy()  # combine channels
     color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
     color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
-    color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-    color_image = lab2rgb(color_image.astype(np.float64))
-    return color_image
+    color_image[:, :, 1:3] = (color_image[:, :, 1:3] * 255) - 128
+    color_image = lab2rgb(color_image)
+    return color_image#.astype(np.uint8)
 
 
 if __name__ == "__main__":

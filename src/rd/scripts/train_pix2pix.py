@@ -151,7 +151,7 @@ if __name__ == "__main__":
         [
             transforms.Resize((args.img_height, args.img_width), Image.BICUBIC),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     )
 
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(
         Pix2pixDataset(f"{root_data}/val", transforms=transforms_),
         batch_size=10,
-        shuffle=True,
+        shuffle=False,
         num_workers=1,
     )
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(
         Pix2pixDataset(f"{root_data}/test", transforms=transforms_),
         batch_size=args.batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=1,
     )
 
@@ -186,6 +186,7 @@ if __name__ == "__main__":
         real_A = Variable(imgs[0].type(Tensor))
         real_B = Variable(imgs[1].type(Tensor))
         fake_B = generator(real_A)
+        fake_B = (fake_B + 1) / 2
         img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
         os.makedirs("models/%s/" % "validation", exist_ok=True)
         save_image(
@@ -228,7 +229,7 @@ if __name__ == "__main__":
 
                 # GAN loss
                 fake_B = generator(real_A)
-                pred_fake = discriminator(fake_B, real_A)
+                pred_fake = discriminator(real_A, fake_B)
                 loss_GAN = criterion_GAN(pred_fake, valid)
                 # Pixel-wise loss
                 loss_pixel = criterion_pixelwise(fake_B, real_B)
@@ -248,11 +249,11 @@ if __name__ == "__main__":
                 optimizer_D.zero_grad()
 
                 # Real loss
-                pred_real = discriminator(real_B, real_A)
+                pred_real = discriminator(real_A, real_B)
                 loss_real = criterion_GAN(pred_real, valid)
 
                 # Fake loss
-                pred_fake = discriminator(fake_B.detach(), real_A)
+                pred_fake = discriminator(real_A, fake_B.detach())
                 loss_fake = criterion_GAN(pred_fake, fake)
 
                 # Total loss
@@ -301,16 +302,15 @@ if __name__ == "__main__":
             # --------------
             #  Validation Progress (Generator Only)
             # --------------
-
+            epoch_valid_loss = 0
             with torch.no_grad():
-                epoch_valid_loss = 0
                 for i, (A, B) in enumerate(val_dataloader):
                     real_A = Variable(A.type(Tensor))
                     real_B = Variable(B.type(Tensor))
                     fake_B = generator(real_A)
-                    epoch_valid_loss += criterion_GAN(fake_B, real_B).item()
+                    epoch_valid_loss += criterion_pixelwise(fake_B, real_B).item()
 
-                epoch_valid_loss = epoch_valid_loss / len(val_dataloader)
+            epoch_valid_loss = epoch_valid_loss / len(val_dataloader)
             mlflow.log_metric("val_loss_G", epoch_valid_loss, step=epoch)
 
             if epoch_valid_loss > vald_loss:

@@ -40,10 +40,11 @@ class Pix2pixDataset(Dataset):
 
         # Apply transforms if available
         if self.transform:
-            img_A = self.transform(Image.fromarray(img_A))
+            # Apply transforms and normalize to [-1, 1]
+            img_A = self.transform(Image.fromarray(img_A)) * 2 - 1
             img_B = self.transform(
                 Image.fromarray((img_B * 255).astype(np.uint8))
-            )  # Rescale grayscale to 0-255
+            )  * 2 - 1 # Rescale grayscale to 0-255, then normalize
 
         return img_B, img_A
 
@@ -94,19 +95,23 @@ class LABColorDataset(Dataset):
         if self.transform:
             image = self.transform(image)  # Apply transforms if provided
 
-        image_np = np.asarray(image)  # Convert image to numpy array
-        img_lab = rgb2lab(image_np)  # Convert image to LAB color space
-        img_lab = (img_lab + 128) / 255  # Normalize LAB values to [0, 1]
-        img_ab = torch.from_numpy(
-            img_lab[:, :, 1:3].transpose((2, 0, 1))
-        ).float()  # Extract and convert "ab" channels
+        # Convertir le tensor RGB en numpy pour LAB conversion
+        image_np = image.permute(1, 2, 0).numpy()  # (H, W, C) pour skimage
+        image_np = image_np * 255.0  # Remettre l'image dans la plage [0, 255]
 
-        img_gray = rgb2gray(image_np)  # Convert image to grayscale
-        img_gray = (
-            torch.from_numpy(img_gray).unsqueeze(0).float()
-        )  # Add channel dim for grayscale
+        # Conversion en LAB
+        img_lab = rgb2lab(image_np).astype(np.float32)
 
-        return img_gray, img_ab  # Return grayscale and "ab" tensors
+        # Normaliser chaque canal
+        L = img_lab[:, :, 0] / 100.0  # Normalise L dans [0, 1]
+        a = (img_lab[:, :, 1] + 128) / 255.0  # Normalise a dans [0, 1]
+        b = (img_lab[:, :, 2] + 128) / 255.0  # Normalise b dans [0, 1]
+
+        # Combine en tensors PyTorch
+        input_L = torch.tensor(L).unsqueeze(0)  # Ajoute une dimension pour le canal (1, H, W)
+        target_ab = torch.tensor(np.stack((a, b), axis=-1)).permute(2, 0, 1)  # (2, H, W)
+
+        return input_L, target_ab
 
 
 class AverageMeter:

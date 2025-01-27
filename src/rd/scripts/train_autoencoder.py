@@ -97,7 +97,7 @@ if __name__ == "__main__":
     transforms = T.Compose(
         [
             T.Resize((256, 256), Image.BICUBIC),
-            # T.ToTensor(),
+            T.ToTensor(),
             # T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     )
@@ -145,6 +145,10 @@ if __name__ == "__main__":
                 patience = 0
                 vald_loss = epoch_valid_loss
                 torch.save(model.state_dict(), "models/auto_encoder.pth")
+                mlflow.pytorch.log_model(
+                    pytorch_model=model,
+                    artifact_path=f"{artifact_path}/generator",
+                )
                 trainner.plot_losses("models")
 
             if patience > args.early_stop or epoch == args.epochs - 1:
