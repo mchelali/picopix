@@ -25,8 +25,8 @@ def test_pix2pix_dataset_length(mock_dataset):
 def test_pix2pix_dataset_item(mock_dataset):
     transforms_ = transforms.Compose(
         [
+            transforms.Resize((256, 256), Image.BICUBIC),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     )
     dataset = Pix2pixDataset(root_dir=str(mock_dataset), transforms=transforms_)
@@ -45,6 +45,7 @@ def test_lab_color_dataset_item(mock_dataset):
     transform = transforms.Compose(
         [
             transforms.Resize((256, 256), Image.BICUBIC),
+            transforms.ToTensor(),
         ]
     )
     dataset = LABColorDataset(root_dir=str(mock_dataset), transform=transform)
